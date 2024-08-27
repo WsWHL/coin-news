@@ -1,0 +1,19 @@
+[api]
+mode = "debug"
+addr = ":8080"
+
+[mysql]
+host = "localhost"
+port = 3306
+username = "root"
+password = "123456"
+database = "news"
+
+[redis]
+addr = "localhost:6379"
+password = ""
+db = 0
+
+[elastic]
+addr = "localhost"
+index = ""
