@@ -22,10 +22,6 @@ type Scrapy struct {
 }
 
 func NewScrapy(url string) *Scrapy {
-	return NewScrapyWithHeader(url, nil)
-}
-
-func NewScrapyWithHeader(url string, hdr map[string]string) *Scrapy {
 	c := colly.NewCollector(
 		colly.UserAgent(browser.Chrome()),
 		colly.AllowURLRevisit(),
@@ -50,8 +46,12 @@ func NewScrapyWithHeader(url string, hdr map[string]string) *Scrapy {
 		c:     c,
 		retry: 3,
 		url:   url,
-		hdr:   hdr,
 	}
+}
+
+func (s *Scrapy) WithHeader(hdr map[string]string) *Scrapy {
+	s.hdr = hdr
+	return s
 }
 
 func (s *Scrapy) Clone(url string) *Scrapy {

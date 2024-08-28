@@ -19,7 +19,7 @@ var (
 )
 
 func newQueue() *queue.Queue {
-	return queue.NewPool(1, queue.WithFn(func(ctx context.Context, m core.QueuedMessage) error {
+	return queue.NewPool(5, queue.WithFn(func(ctx context.Context, m core.QueuedMessage) error {
 		article := &models.Article{}
 		if err := json.Unmarshal(m.Bytes(), article); err != nil {
 			logger.Errorf("Failed to unmarshal message: %s", err)
@@ -41,6 +41,7 @@ func newQueue() *queue.Queue {
 				return err
 			}
 		}
+		logger.Infof("[%s]Saved article: %s, link: %s", article.Token, article.Title, article.Link)
 
 		return nil
 	}))
@@ -78,5 +79,6 @@ func init() {
 		newsaddr.NewTheBlockScrapy(q),
 		newsaddr.NewDecryptScrapy(q),
 		newsaddr.NewTheDefiantScrapy(q),
+		newsaddr.NewBinanceScrapy(q),
 	}
 }
