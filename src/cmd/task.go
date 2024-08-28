@@ -9,26 +9,37 @@ import (
 	"news/src/models"
 	"news/src/newsaddr"
 	"news/src/storage"
+	"strings"
 )
 
 var (
 	scrapers []newsaddr.Scraper
 	q        *queue.Queue
+	s        *storage.Service
 )
 
 func newQueue() *queue.Queue {
-	s := storage.NewService()
-	return queue.NewPool(10, queue.WithFn(func(ctx context.Context, m core.QueuedMessage) error {
+	return queue.NewPool(1, queue.WithFn(func(ctx context.Context, m core.QueuedMessage) error {
 		article := &models.Article{}
 		if err := json.Unmarshal(m.Bytes(), article); err != nil {
 			logger.Errorf("Failed to unmarshal message: %s", err)
 			return err
 		}
 
-		logger.Infof("Scraped article[%s]: %s, link: %s", article.Token, article.Title, article.Link)
-		if err := s.Save(article); err != nil {
-			logger.Errorf("Failed to save article: %s", err)
-			return err
+		logger.Infof("Scraped article: %s, link: %s", article.Title, article.Link)
+
+		// 保存文章信息
+		_ = s.Translate(article)
+		if strings.HasSuffix(article.From, "_coin") { // 新闻来源是币
+			if err := s.SaveCoin(article); err != nil {
+				logger.Errorf("Failed to save coin article: %s", err)
+				return err
+			}
+		} else {
+			if err := s.Save(article); err != nil {
+				logger.Errorf("Failed to save article: %s", err)
+				return err
+			}
 		}
 
 		return nil
@@ -37,6 +48,13 @@ func newQueue() *queue.Queue {
 
 func StartTask() {
 	logger.Info("Starting task...")
+
+	// restore articles from storage if exists
+	s = storage.NewService()
+	err := s.Restore()
+	if err != nil {
+		panic(err)
+	}
 
 	// start scraping
 	defer q.Release()

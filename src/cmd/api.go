@@ -40,10 +40,13 @@ func StartAPIServer() {
 	svc := http.Server{
 		Addr:           config.Cfg.API.Addr,
 		Handler:        g,
-		ReadTimeout:    15 * time.Second,
-		WriteTimeout:   15 * time.Second,
 		MaxHeaderBytes: 1 << 20,
 	}
+	if config.Cfg.API.Mode == gin.ReleaseMode {
+		svc.ReadTimeout = 15 * time.Second
+		svc.WriteTimeout = 15 * time.Second
+	}
+
 	if err := svc.ListenAndServe(); err != nil {
 		logger.Infof("Failed to start API server: %v", err)
 	}

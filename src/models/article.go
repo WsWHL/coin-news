@@ -52,7 +52,7 @@ func (a *Article) Bytes() []byte {
 }
 
 func (a *Article) GenToken() string {
-	data := fmt.Sprintf("%s%d", a.Title, a.PubDate.Time.Unix())
+	data := fmt.Sprintf("%s", a.Title)
 	hash := sha256.Sum256([]byte(data))
 	return hex.EncodeToString(hash[:])
 }

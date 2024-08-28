@@ -1,35 +1,41 @@
 package storage
 
 import (
+	"news/src/config"
 	"news/src/models"
+	"news/src/utils"
 )
 
 type Strategy interface {
 	Get(token string) (*models.Article, error)
 	Save(article *models.Article) error
+	SaveCoin(article *models.Article) error
+	GetHomeList(category string, page, size int) ([]*models.Article, int64, error)
+	GetReadList(origin []string, category string) (map[string][]*models.Article, error)
 	GetListByCategory(category string) ([]*models.Article, error)
 	GetListByOrigin(origin string, page, size int) ([]*models.Article, int64, error)
 	GetOriginsByCategory(category string) ([]string, error)
+	NewsSearch(keyword string, page, size int) ([]*models.Article, int64, error)
+	Restore() error
 }
 
 type Service struct {
-	storages []Strategy
+	translator *utils.Translate
+	storages   []Strategy
 }
 
 func NewService() *Service {
-	return &Service{
-		storages: []Strategy{
-			NewMySQLStorage(),
-			NewRedisStorage(),
-		},
+	translator, err := utils.NewTranslate(config.Cfg.Kimi.Prompt)
+	if err != nil {
+		panic(err)
 	}
-}
 
-func NewServiceCacheFirst() *Service {
 	return &Service{
+		translator: translator,
 		storages: []Strategy{
-			NewRedisStorage(),
 			NewMySQLStorage(),
+			NewRedisStorage(),
+			NewElasticsearchStorage(),
 		},
 	}
 }
@@ -61,14 +67,54 @@ func (s *Service) Get(token string) (*models.Article, error) {
 func (s *Service) Save(article *models.Article) error {
 	var err error
 	s.fetch(func(store Strategy) bool {
-		if err = store.Save(article); err != nil {
+		_ = store.Save(article)
+		return false // 每个存储都需要保存
+	})
+
+	return err
+}
+
+func (s *Service) SaveCoin(article *models.Article) error {
+	var err error
+	s.fetch(func(store Strategy) bool {
+		_ = store.SaveCoin(article)
+		return false // 每个存储都需要保存
+	})
+
+	return err
+}
+
+func (s *Service) GetHomeList(category string, page, size int) ([]*models.Article, int64) {
+	var (
+		articles []*models.Article
+		count    int64
+		err      error
+	)
+	s.fetch(func(store Strategy) bool {
+		if articles, count, err = store.GetHomeList(category, page, size); err != nil {
 			return false
 		}
 
 		return true
 	})
 
-	return err
+	return articles, count
+}
+
+func (s *Service) GetReadList(origins []string, category string) (map[string][]*models.Article, error) {
+	var (
+		readList map[string][]*models.Article
+		err      error
+	)
+	s.fetch(func(store Strategy) bool {
+		if readList, err = store.GetReadList(origins, category); err != nil {
+			return false
+		}
+
+		return true
+	})
+
+	return readList, err
 }
 
 func (s *Service) GetListByCategory(category string) ([]*models.Article, error) {
@@ -118,4 +164,46 @@ func (s *Service) GetOriginsByCategory(category string) ([]string, error) {
 	})
 
 	return origins, err
+}
+
+func (s *Service) NewsSearch(keyword string, page, size int) ([]*models.Article, int64) {
+	var (
+		articles []*models.Article
+		count    int64
+		err      error
+	)
+	s.fetch(func(store Strategy) bool {
+		if articles, count, err = store.NewsSearch(keyword, page, size); err != nil {
+			return false
+		}
+
+		return true
+	})
+
+	return articles, count
+}
+
+func (s *Service) Restore() error {
+	var err error
+	s.fetch(func(store Strategy) bool {
+		_ = store.Restore()
+		return false // 每个存储都需要恢复
+	})
+
+	return err
+}
+
+func (s *Service) Translate(article *models.Article) error {
+	if article.From == "jinse" {
+		article.TitleCN = article.Title
+		return nil
+	}
+
+	result, err := s.translator.Send(article.Title)
+	if err != nil {
+		return err
+	}
+
+	article.TitleCN = result
+	return nil
 }

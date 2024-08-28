@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"errors"
 	"gorm.io/gorm"
 	"news/src/models"
 	"time"
@@ -38,14 +39,34 @@ func (s *MySQLStorage) Save(article *models.Article) error {
 	return s.DB.Save(article).Error
 }
 
+func (s *MySQLStorage) SaveCoin(article *models.Article) error {
+	return errors.New("not implemented")
+}
+
+func (s *MySQLStorage) GetHomeList(category string, page, size int) ([]*models.Article, int64, error) {
+	return nil, 0, errors.New("not implemented")
+}
+
+func (s *MySQLStorage) GetReadList(origin []string, category string) (map[string][]*models.Article, error) {
+	return nil, errors.New("not implemented")
+}
+
 func (s *MySQLStorage) GetListByCategory(category string) ([]*models.Article, error) {
-	return nil, nil
+	return nil, errors.New("not implemented")
 }
 
 func (s *MySQLStorage) GetListByOrigin(origin string, page, size int) ([]*models.Article, int64, error) {
-	return nil, 0, nil
+	return nil, 0, errors.New("not implemented")
 }
 
 func (s *MySQLStorage) GetOriginsByCategory(category string) ([]string, error) {
-	return nil, nil
+	return nil, errors.New("not implemented")
+}
+
+func (s *MySQLStorage) NewsSearch(keyword string, page, size int) ([]*models.Article, int64, error) {
+	return nil, 0, errors.New("not implemented")
+}
+
+func (s *MySQLStorage) Restore() error {
+	return errors.New("not implemented")
 }

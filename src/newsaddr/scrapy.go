@@ -28,12 +28,13 @@ func NewScrapy(url string) *Scrapy {
 	)
 	c.WithTransport(&http.Transport{
 		DialContext: defaultDialContext(&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
+			Timeout:   180 * time.Second,
+			KeepAlive: 60 * time.Second,
 		}),
-		MaxIdleConns:    100,
-		IdleConnTimeout: 90 * time.Second,
-		TLSClientConfig: getCloudFlareTLSConfiguration(),
+		ResponseHeaderTimeout: 60 * time.Second,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSClientConfig:       getCloudFlareTLSConfiguration(),
 	})
 
 	return &Scrapy{
@@ -63,30 +64,33 @@ func (s *Scrapy) Start() {
 		r.Headers.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8")
 		r.Headers.Set("Accept-Language", "en-US,en;q=0.5")
 		r.Headers.Set("User-Agent", browser.Chrome())
+		r.Headers.Set("Referer", r.URL.Host)
 
 		logger.Infof("Visiting: %s", r.URL)
 	})
 
+	// Retry up to 3 times if the request fails
+	count := s.retry
 	s.c.OnScraped(func(r *colly.Response) {
 		logger.Infof("Finished: %s", r.Request.URL)
+		count = s.retry // reset retry count
 	})
 
 	s.c.OnError(func(r *colly.Response, err error) {
 		logger.Errorf("Request URL: %s, status_code: %d, error: %s", r.Request.URL, r.StatusCode, err)
+
+		count--
+		for count >= 0 {
+			logger.Infof("Retrying %d more times...", s.retry-count)
+			time.Sleep(time.Second * 1)
+			if err = r.Request.Retry(); err == nil {
+				return
+			}
+		}
 	})
 
 	if err := s.c.Visit(s.url); err != nil {
 		logger.Errorf("url: %s, error: %s", s.url, err)
-
-		// Retry up to 3 times if the request fails
-		count := s.retry
-		for ; count > 0; count-- {
-			logger.Infof("Retrying %d more times...", count)
-			time.Sleep(time.Second * 1)
-			if err = s.c.Visit(s.url); err == nil {
-				return
-			}
-		}
 	}
 }
 

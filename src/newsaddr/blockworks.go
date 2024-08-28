@@ -26,6 +26,31 @@ func NewBlockWorksScrapy(q *queue.Queue) *BlockWorksScrapy {
 	}
 }
 
+func (b *BlockWorksScrapy) OnDetails(url string) models.Article {
+	article := models.Article{}
+
+	s := NewScrapy(url)
+	s.OnCallback("article", func(e *colly.HTMLElement) {
+		article.Title = e.ChildText("h1:first-of-type")
+		article.Abstract = e.ChildText("div:first-of-type > p.text-left")
+		author := e.ChildText("div:first-of-type div.uppercase:first-of-type")
+		pubDate := e.ChildAttr("div:first-of-type div.uppercase:last-of-type time", "datetime")
+		image := e.ChildAttr("div:nth-of-type(2) img.object-cover", "src")
+
+		article.Image = e.Request.AbsoluteURL(image)
+		article.Author = author[3 : len(author)-2]
+		if t, err := time.Parse(time.RFC3339, pubDate); err == nil {
+			article.PubDate = sql.NullTime{
+				Time:  t,
+				Valid: true,
+			}
+		}
+	})
+	s.Start()
+
+	return article
+}
+
 func (b *BlockWorksScrapy) OnHomepageNews() (models.ArticleList, models.ArticleList) {
 	latest := make([]models.Article, 0, 30)
 	featured := make([]models.Article, 0, 30)
@@ -34,26 +59,16 @@ func (b *BlockWorksScrapy) OnHomepageNews() (models.ArticleList, models.ArticleL
 
 	// latest news
 	s.OnCallback("section.flex section", func(e *colly.HTMLElement) {
-		title := e.ChildText("div:nth-child(2) > a > span.text-sm")
 		link := e.ChildAttr("div:nth-child(2) > a", "href")
-		pubDate := e.ChildAttr("div:nth-child(1) > p > time", "datetime")
-
 		link = e.Request.AbsoluteURL(link)
 
-		article := models.Article{
-			From:     b.name,
-			Category: models.LatestCategory,
-			Title:    title,
-			Link:     link,
+		article := b.OnDetails(link)
+		article.From = b.name
+		article.Category = models.LatestCategory
+		article.Link = link
+		if article.Title != "" {
+			latest = append(latest, article)
 		}
-		if t, err := time.Parse(time.RFC3339, pubDate); err == nil {
-			article.PubDate = sql.NullTime{
-				Time:  t,
-				Valid: true,
-			}
-		}
-
-		latest = append(latest, article)
 	})
 
 	// featured
@@ -102,8 +117,7 @@ func (b *BlockWorksScrapy) OnHomepageNews() (models.ArticleList, models.ArticleL
 				authors = append(authors, i.Text)
 			})
 			article.Author = strings.Join(authors, " & ")
-
-			link = c.Request.AbsoluteURL(link)
+			article.Link = c.Request.AbsoluteURL(link)
 			if image != "" {
 				article.Image = c.Request.AbsoluteURL(image)
 			}

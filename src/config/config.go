@@ -21,8 +21,14 @@ type config struct {
 		DB       int
 	}
 	Elastic struct {
-		Addr  string
-		Index string
+		Addr     string
+		Index    string
+		Username string
+		Password string
+	}
+	Kimi struct {
+		Key    string
+		Prompt string
 	}
 }
 
