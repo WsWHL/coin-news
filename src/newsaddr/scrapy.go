@@ -18,22 +18,31 @@ type Scrapy struct {
 	c     *colly.Collector
 	retry int
 	url   string
+	hdr   map[string]string
 }
 
 func NewScrapy(url string) *Scrapy {
+	return NewScrapyWithHeader(url, nil)
+}
+
+func NewScrapyWithHeader(url string, hdr map[string]string) *Scrapy {
 	c := colly.NewCollector(
 		colly.UserAgent(browser.Chrome()),
 		colly.AllowURLRevisit(),
 		colly.Debugger(&debug.LogDebugger{}),
 	)
 	c.WithTransport(&http.Transport{
+		Proxy: http.ProxyFromEnvironment,
 		DialContext: defaultDialContext(&net.Dialer{
 			Timeout:   180 * time.Second,
 			KeepAlive: 60 * time.Second,
 		}),
+		ForceAttemptHTTP2:     true,
 		ResponseHeaderTimeout: 60 * time.Second,
 		MaxIdleConns:          100,
 		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
 		TLSClientConfig:       getCloudFlareTLSConfiguration(),
 	})
 
@@ -41,13 +50,16 @@ func NewScrapy(url string) *Scrapy {
 		c:     c,
 		retry: 3,
 		url:   url,
+		hdr:   hdr,
 	}
 }
 
 func (s *Scrapy) Clone(url string) *Scrapy {
 	return &Scrapy{
-		c:   s.c.Clone(),
-		url: url,
+		c:     s.c.Clone(),
+		retry: 3,
+		url:   url,
+		hdr:   s.hdr,
 	}
 }
 
@@ -64,7 +76,11 @@ func (s *Scrapy) Start() {
 		r.Headers.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8")
 		r.Headers.Set("Accept-Language", "en-US,en;q=0.5")
 		r.Headers.Set("User-Agent", browser.Chrome())
-		r.Headers.Set("Referer", r.URL.Host)
+
+		// Set custom headers
+		for k, v := range s.hdr {
+			r.Headers.Set(k, v)
+		}
 
 		logger.Infof("Visiting: %s", r.URL)
 	})

@@ -44,7 +44,7 @@ func (d *DecryptScrapy) OnNewsAPI(body []byte, category models.CategoryTypes) mo
 	articles := make(models.ArticleList, 0, 30)
 
 	data := gjson.GetBytes(body, "pageProps.dehydratedState.queries.#(state.data.pages.#(articles.data.#(__typename==\"NewsArticleEntity\")))#.state.data.pages.0.articles.data")
-	if data.IsArray() {
+	if data.IsArray() && len(data.Array()) > 0 {
 		data = data.Array()[0]
 		data.ForEach(func(_, i gjson.Result) bool {
 			date := i.Get("publishedAt").String()
@@ -81,7 +81,7 @@ func (d *DecryptScrapy) OnCoinAPI(buildId string, body []byte) {
 		}
 
 		data := gjson.GetBytes(r.Body, "pageProps.dehydratedState.queries.#(state.data.pages.#(articles.data.#(__typename==\"NewsArticleEntity\")))#.state.data.pages.0.articles.data")
-		if data.IsArray() {
+		if data.IsArray() && len(data.Array()) > 0 {
 			data = data.Array()[0]
 			data.ForEach(func(_, i gjson.Result) bool {
 				date := i.Get("publishedAt").String()
