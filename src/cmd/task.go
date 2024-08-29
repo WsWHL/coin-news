@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"github.com/golang-queue/queue"
 	"github.com/golang-queue/queue/core"
+	"news/src/config"
 	"news/src/logger"
 	"news/src/models"
 	"news/src/newsaddr"
 	"news/src/storage"
+	"news/src/utils"
 	"strings"
 )
 
@@ -18,7 +20,35 @@ var (
 	s        *storage.Service
 )
 
-func newQueue() *queue.Queue {
+type pluginFunc func(article *models.Article)
+
+func translateTitle() pluginFunc {
+	translator, err := utils.NewTranslate(config.Cfg.Kimi.Prompt)
+	if err != nil {
+		panic(err)
+	}
+
+	return func(article *models.Article) {
+		if article.From == "jinse" {
+			article.TitleCN = article.Title
+		}
+
+		if article.Title != "" && article.TitleCN == "" {
+			article.TitleCN, _ = translator.Send(article.Title)
+		}
+	}
+}
+
+func searchImage() pluginFunc {
+	g := utils.NewGoogleSearch(context.Background())
+	return func(article *models.Article) {
+		if article.Image == "" {
+			article.Image, _ = g.Search(article.Title)
+		}
+	}
+}
+
+func newQueue(plugins ...pluginFunc) *queue.Queue {
 	return queue.NewPool(5, queue.WithFn(func(ctx context.Context, m core.QueuedMessage) error {
 		article := &models.Article{}
 		if err := json.Unmarshal(m.Bytes(), article); err != nil {
@@ -28,8 +58,12 @@ func newQueue() *queue.Queue {
 
 		logger.Infof("Scraped article: %s, link: %s", article.Title, article.Link)
 
+		// 检查文章信息，自动填充缺失信息
+		for _, p := range plugins {
+			p(article)
+		}
+
 		// 保存文章信息
-		_ = s.Translate(article)
 		if strings.HasSuffix(article.From, "_coin") { // 新闻来源是币
 			if err := s.SaveCoin(article); err != nil {
 				logger.Errorf("Failed to save coin article: %s", err)
@@ -71,7 +105,11 @@ func StartTask() {
 }
 
 func init() {
-	q = newQueue()
+	q = newQueue(
+		translateTitle(),
+		searchImage(),
+	)
+
 	scrapers = []newsaddr.Scraper{
 		newsaddr.NewJinSeScrapy(q),
 		newsaddr.NewBeinCryptoScrapy(q),

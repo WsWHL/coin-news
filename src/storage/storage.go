@@ -1,9 +1,7 @@
 package storage
 
 import (
-	"news/src/config"
 	"news/src/models"
-	"news/src/utils"
 )
 
 type Strategy interface {
@@ -20,18 +18,11 @@ type Strategy interface {
 }
 
 type Service struct {
-	translator *utils.Translate
-	storages   []Strategy
+	storages []Strategy
 }
 
 func NewService() *Service {
-	translator, err := utils.NewTranslate(config.Cfg.Kimi.Prompt)
-	if err != nil {
-		panic(err)
-	}
-
 	return &Service{
-		translator: translator,
 		storages: []Strategy{
 			NewMySQLStorage(),
 			NewRedisStorage(),
@@ -191,19 +182,4 @@ func (s *Service) Restore() error {
 	})
 
 	return err
-}
-
-func (s *Service) Translate(article *models.Article) error {
-	if article.From == "jinse" {
-		article.TitleCN = article.Title
-		return nil
-	}
-
-	result, err := s.translator.Send(article.Title)
-	if err != nil {
-		return err
-	}
-
-	article.TitleCN = result
-	return nil
 }

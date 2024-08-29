@@ -248,14 +248,8 @@ type QueueWrapper func(articles ...models.Article)
 
 // NewQueueWrapper wraps a queue to send articles to it.
 func NewQueueWrapper(q *queue.Queue) QueueWrapper {
-	g := utils.NewGoogleSearch(context.Background())
 	return func(articles ...models.Article) {
 		for _, article := range articles {
-			// search for image and add it to the article
-			if article.Image == "" {
-				article.Image, _ = g.Search(article.Title)
-			}
-
 			if err := q.Queue(&article); err != nil {
 				logger.Errorf("Failed to send article: %s", err)
 				continue
