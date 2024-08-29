@@ -138,7 +138,7 @@ func NewElasticsearchStorage() *ElasticsearchStorage {
 		logger.Errorf("Error getting Elasticsearch info: %v", err)
 		return nil
 	}
-	logger.Infof("Elasticsearch cluster info: %s", info)
+	logger.Debugf("Elasticsearch cluster info: %s", info)
 
 	return elastic
 }

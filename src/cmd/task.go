@@ -66,6 +66,7 @@ func StartTask() {
 		}
 	}
 
+	q.Wait()
 	logger.Info("Task started successfully.")
 }
 

@@ -2,6 +2,7 @@ package newsaddr
 
 import (
 	"database/sql"
+	"fmt"
 	"github.com/gocolly/colly"
 	"github.com/golang-queue/queue"
 	"news/src/models"
@@ -27,7 +28,7 @@ func NewTheBlockScrapy(q *queue.Queue) *TheBlockScrapy {
 func (b *TheBlockScrapy) OnDetails(url string) models.Article {
 	article := models.Article{}
 
-	s := NewScrapy(url)
+	s := NewBrowserScrapy(url)
 	s.OnCallback("article.articleBody", func(e *colly.HTMLElement) {
 		title := e.ChildText("h1[class^=articleLabel]")
 		author := e.ChildText("div.articleByline a")
@@ -54,8 +55,9 @@ func (b *TheBlockScrapy) OnDetails(url string) models.Article {
 }
 
 func (b *TheBlockScrapy) Run() error {
-	s := NewScrapy(b.domain)
+	s := NewBrowserScrapy(b.domain)
 
+	// latest
 	s.OnCallback("div.heroLeftRail div.latestNews article", func(e *colly.HTMLElement) {
 		link := e.ChildAttr("div.textCard__content a.textCard__link", "href")
 		url := e.Request.AbsoluteURL(link)
@@ -65,6 +67,7 @@ func (b *TheBlockScrapy) Run() error {
 		b.send(article)
 	})
 
+	// featured
 	s.OnCallback("div.featuredStories article", func(e *colly.HTMLElement) {
 		title := e.ChildText("div[class$=__content] a > h2")
 		link := e.ChildAttr("div[class$=__content] a.appLink", "href")
@@ -86,8 +89,31 @@ func (b *TheBlockScrapy) Run() error {
 			PubDate:  pubDate,
 		})
 	})
-
 	s.Start()
+
+	s1 := NewBrowserScrapy(fmt.Sprintf("%s/features", b.domain))
+	s1.OnCallback("section#contentRoot section div.articles article", func(e *colly.HTMLElement) {
+		title := e.ChildText("div[class$=__content] a > h2")
+		link := e.ChildAttr("div[class$=__content] a.appLink", "href")
+		image := e.ChildAttr("a > img[class$=image]", "src")
+		date := e.ChildText("div.meta__timestamp")
+
+		pubDate := sql.NullTime{}
+		if t, err := time.Parse("January 02, 2006, 15:04PM MST", date); err == nil {
+			pubDate.Time = t
+			pubDate.Valid = true
+		}
+
+		b.send(models.Article{
+			From:     b.name,
+			Category: models.FeaturedCategory,
+			Title:    title,
+			Link:     e.Request.AbsoluteURL(link),
+			Image:    image,
+			PubDate:  pubDate,
+		})
+	})
+	s1.Start()
 
 	return nil
 }

@@ -53,7 +53,7 @@ func (t *TheDefiantScrapy) OnNewsList(url string, category models.CategoryTypes)
 	articles := make([]models.Article, 0, 30)
 
 	s := NewScrapy(url)
-	s.OnCallback("section > div:first-of-type > div", func(e *colly.HTMLElement) {
+	s.OnCallback("main > section > div:first-of-type > div", func(e *colly.HTMLElement) {
 		title := e.ChildText("div:nth-of-type(2) a h3")
 		link := e.ChildAttr("div:nth-of-type(2) div a:last-of-type", "href")
 		description := e.ChildText("div:nth-of-type(2) div.text-base")
