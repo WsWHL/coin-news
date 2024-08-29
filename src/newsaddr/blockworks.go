@@ -88,7 +88,6 @@ func (b *BlockWorksScrapy) OnHomepageNews() (models.ArticleList, models.ArticleL
 				authors = append(authors, i.Text)
 			})
 			article.Author = strings.Join(authors, " & ")
-
 			article.Link = c.Request.AbsoluteURL(link)
 			article.Image = c.Request.AbsoluteURL(image)
 
@@ -120,6 +119,8 @@ func (b *BlockWorksScrapy) OnHomepageNews() (models.ArticleList, models.ArticleL
 			article.Link = c.Request.AbsoluteURL(link)
 			if image != "" {
 				article.Image = c.Request.AbsoluteURL(image)
+			} else {
+				article.Image = b.OnDetails(article.Link).Image
 			}
 
 			if t, err := time.Parse(time.RFC3339, pubDate); err == nil {
