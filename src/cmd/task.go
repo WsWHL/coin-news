@@ -12,6 +12,7 @@ import (
 	"news/src/storage"
 	"news/src/utils"
 	"strings"
+	"time"
 )
 
 var (
@@ -49,7 +50,7 @@ func searchImage() pluginFunc {
 }
 
 func newQueue(plugins ...pluginFunc) *queue.Queue {
-	return queue.NewPool(5, queue.WithFn(func(ctx context.Context, m core.QueuedMessage) error {
+	return queue.NewPool(5, queue.WithLogger(logger.GetLogger()), queue.WithFn(func(ctx context.Context, m core.QueuedMessage) error {
 		article := &models.Article{}
 		if err := json.Unmarshal(m.Bytes(), article); err != nil {
 			logger.Errorf("Failed to unmarshal message: %s", err)
@@ -92,7 +93,6 @@ func StartTask() {
 	}
 
 	// start scraping
-	defer q.Release()
 	for _, c := range scrapers {
 		if err := c.Run(); err != nil {
 			logger.Errorf("Task failed: %s", err)
@@ -100,7 +100,13 @@ func StartTask() {
 		}
 	}
 
-	q.Wait()
+	// wait for all queue tasks to finish
+	defer q.Release()
+	for q.BusyWorkers() > 0 {
+		time.Sleep(time.Second)
+	}
+
+	logger.Infof("Queue task finished. submitted tasks: %d, success tasks: %d, failure tasks: %d", q.SubmittedTasks(), q.SuccessTasks(), q.FailureTasks())
 	logger.Info("Task started successfully.")
 }
 

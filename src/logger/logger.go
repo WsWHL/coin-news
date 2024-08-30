@@ -86,6 +86,10 @@ func init() {
 	))
 }
 
+func GetLogger() *logrus.Logger {
+	return log
+}
+
 func Debug(msg string) {
 	log.Debug(msg)
 }
