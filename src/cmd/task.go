@@ -30,7 +30,7 @@ func translateTitle() pluginFunc {
 	}
 
 	return func(article *models.Article) {
-		if article.From == "jinse" {
+		if article.From == "jinse" || article.From == "biepie" { // 金色财经和比特派为中文数据
 			article.TitleCN = article.Title
 		}
 
@@ -126,5 +126,6 @@ func init() {
 		newsaddr.NewDecryptScrapy(q),
 		newsaddr.NewTheDefiantScrapy(q),
 		newsaddr.NewBinanceScrapy(q),
+		newsaddr.NewBitPieScrapy(q),
 	}
 }
