@@ -103,6 +103,7 @@ func StartTask() {
 	// wait for all queue tasks to finish
 	defer q.Release()
 	for q.BusyWorkers() > 0 {
+		logger.Infof("Waiting for queue tasks to finish. busy workers: %d", q.BusyWorkers())
 		time.Sleep(time.Second)
 	}
 
