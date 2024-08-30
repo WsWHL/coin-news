@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	browser "github.com/EDDYCJY/fake-useragent"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/chromedp/chromedp"
 	"github.com/gocolly/colly"
@@ -14,6 +13,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"news/src/config"
 	"news/src/logger"
 	"news/src/models"
 	"news/src/utils"
@@ -31,7 +31,7 @@ type Scrapy struct {
 
 func NewScrapy(url string) *Scrapy {
 	c := colly.NewCollector(
-		colly.UserAgent(browser.Chrome()),
+		colly.UserAgent(config.Cfg.Scrapy.UA),
 		colly.AllowURLRevisit(),
 		colly.Debugger(&debug.LogDebugger{}),
 	)
@@ -89,7 +89,7 @@ func (s *Scrapy) Start() {
 	s.c.OnRequest(func(r *colly.Request) {
 		r.Headers.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8")
 		r.Headers.Set("Accept-Language", "en-US,en;q=0.5")
-		r.Headers.Set("User-Agent", browser.Chrome())
+		r.Headers.Set("User-Agent", config.Cfg.Scrapy.UA)
 
 		// Set custom headers
 		for k, v := range s.hdr {

@@ -11,6 +11,7 @@ import (
 	"news/src/newsaddr"
 	"news/src/storage"
 	"news/src/utils"
+	"reflect"
 	"strings"
 	"time"
 )
@@ -30,7 +31,7 @@ func translateTitle() pluginFunc {
 	}
 
 	return func(article *models.Article) {
-		if article.From == "jinse" || article.From == "biepie" { // 金色财经和比特派为中文数据
+		if article.From == "jinse" || article.From == "bitpie" { // 金色财经和比特派为中文数据
 			article.TitleCN = article.Title
 		}
 
@@ -76,7 +77,7 @@ func newQueue(plugins ...pluginFunc) *queue.Queue {
 				return err
 			}
 		}
-		logger.Infof("[%s]Saved article: %s, link: %s", article.Token, article.Title, article.Link)
+		logger.Infof("Saved article: %s, link: %s", article.Title, article.Link)
 
 		return nil
 	}))
@@ -94,10 +95,17 @@ func StartScrapyTask() {
 
 	// start scraping
 	for _, c := range scrapers {
+		name := reflect.TypeOf(c).Elem().Name()
+		logger.Infof("[%s]Startup scrapy...", name)
+
+		start := time.Now()
 		if err := c.Run(); err != nil {
 			logger.Errorf("Task failed: %s", err)
 			return
 		}
+		elapsed := time.Since(start)
+
+		logger.Infof("[%s]Finished scrapy. elapsed time: %s", name, elapsed)
 	}
 
 	// wait for all queue tasks to finish

@@ -3,6 +3,7 @@ package utils
 import (
 	"context"
 	"github.com/chromedp/chromedp"
+	"news/src/config"
 	"news/src/logger"
 	"sync"
 	"time"
@@ -14,6 +15,7 @@ func NewBrowserContext(ctx context.Context) (context.Context, context.CancelFunc
 		chromedp.NoFirstRun,
 		chromedp.NoDefaultBrowserCheck,
 		chromedp.DisableGPU,
+		chromedp.UserAgent(config.Cfg.Scrapy.UA),
 	}
 	c, _ := chromedp.NewExecAllocator(ctx, options...)
 

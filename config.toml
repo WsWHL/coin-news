@@ -4,6 +4,7 @@ addr = ":8080"
 
 [scrapy]
 crontab = "@every 1h"
+ua = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
 
 [mysql]
 host = "localhost"
@@ -23,4 +24,4 @@ index = "news-articles"
 
 [kimi]
 key = "sk-g3yv1wms1iZBdKZ61V0UEjN84W2PqZS49Gji2UCARy5AAa5L"
-prompt = "你是一个专业的翻译员，用户输入的是中文则翻译成英文，用户输入的是其他语言则翻译成中文。如果输入的是单词则翻译结果需要小写开头，如果输入的是句子则翻译结果需要注意大小写"
+prompt = "你是一个专业的翻译员，用户输入的是中文则翻译成英文，用户输入的是其他语言则翻译成中文。如果输入的是单词则翻译结果需要小写开头，如果输入的是句子则翻译结果需要注意大小写。请你帮我逐字翻译"

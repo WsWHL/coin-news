@@ -21,11 +21,11 @@ func router(g *gin.Engine) {
 
 	// News API
 	s := storage.NewNewsService()
-	g.GET("/home/articles/token/:token", utils.ApiHandle(s.HomeLinkHandler))
-	g.POST("/home/news", utils.ApiHandle(s.HomeHandler))
-	g.POST("/home/news/sitemap/:category/:lang", utils.ApiHandle(s.HomeListHandler))
-	g.POST("/home/categorylist", utils.ApiHandle(s.HomeOriginListHandler))
-	g.POST("/news/readlist", utils.ApiHandle(s.NewsReadListHandler))
+	g.GET("/news/articles/token/:token", utils.ApiHandle(s.HomeLinkHandler))
+	g.POST("/news/home", utils.ApiHandle(s.HomeHandler))
+	g.POST("/news/sitemap/:category/:lang", utils.ApiHandle(s.HomeListHandler))
+	g.POST("/news/origins", utils.ApiHandle(s.HomeOriginListHandler))
+	g.POST("/news/reads", utils.ApiHandle(s.NewsReadListHandler))
 	g.POST("/news/:origin", utils.ApiHandle(s.NewsOriginListHandler))
 	g.POST("/news/search", utils.ApiHandle(s.NewsSearchHandler))
 }

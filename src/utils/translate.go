@@ -5,12 +5,14 @@ import (
 	"github.com/northes/go-moonshot"
 	"news/src/config"
 	"news/src/logger"
+	"sync"
 )
 
 // Translate 基于Kimi实现的翻译
 type Translate struct {
 	client *moonshot.Client
 	prompt string
+	lock   sync.Mutex
 }
 
 func NewTranslate(prompt string) (*Translate, error) {
@@ -22,10 +24,14 @@ func NewTranslate(prompt string) (*Translate, error) {
 	return &Translate{
 		client: client,
 		prompt: prompt,
+		lock:   sync.Mutex{},
 	}, nil
 }
 
 func (t *Translate) Send(content string) (string, error) {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+
 	resp, err := t.client.Chat().Completions(context.Background(), &moonshot.ChatCompletionsRequest{
 		Model:       moonshot.ModelMoonshotV18K,
 		Temperature: 0.0,

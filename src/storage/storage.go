@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"errors"
 	"news/src/models"
 )
 
@@ -58,7 +59,10 @@ func (s *Service) Get(token string) (*models.Article, error) {
 func (s *Service) Save(article *models.Article) error {
 	var err error
 	s.fetch(func(store Strategy) bool {
-		_ = store.Save(article)
+		if e := store.Save(article); e != nil {
+			err = errors.Join(err, e)
+		}
+
 		return false // 每个存储都需要保存
 	})
 
@@ -177,7 +181,9 @@ func (s *Service) NewsSearch(keyword string, page, size int) ([]*models.Article,
 func (s *Service) Restore() error {
 	var err error
 	s.fetch(func(store Strategy) bool {
-		_ = store.Restore()
+		if e := store.Restore(); e != nil {
+			err = errors.Join(err, e)
+		}
 		return false // 每个存储都需要恢复
 	})
 

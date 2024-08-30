@@ -10,6 +10,7 @@ type config struct {
 	}
 	Scrapy struct {
 		Crontab string
+		UA      string
 	}
 	Mysql struct {
 		Host     string
