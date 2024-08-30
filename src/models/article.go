@@ -52,6 +52,10 @@ func (a *Article) Bytes() []byte {
 }
 
 func (a *Article) GenToken() string {
+	if a.Token != "" {
+		return a.Token
+	}
+
 	data := fmt.Sprintf("%s", a.Title)
 	hash := sha256.Sum256([]byte(data))
 	return hex.EncodeToString(hash[:])
@@ -63,6 +67,10 @@ func (a *Article) GetTitleByLang(lang string) string {
 	}
 
 	return a.Title
+}
+
+func (a *Article) GetScore() float64 {
+	return float64(a.Reads + a.Interactions + a.Comments)
 }
 
 type ArticleList []Article

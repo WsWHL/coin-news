@@ -152,6 +152,7 @@ func (s *ElasticsearchStorage) Get(token string) (*models.Article, error) {
 }
 
 func (s *ElasticsearchStorage) Save(article *models.Article) error {
+	article.Token = article.GenToken()
 	resp, err := s.client.Create(s.index, article.Token, bytes.NewReader(article.Bytes()))
 	if err != nil {
 		logger.Errorf("Error saving article to Elasticsearch: %v", err)

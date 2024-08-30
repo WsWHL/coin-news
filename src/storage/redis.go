@@ -52,6 +52,7 @@ func (s *RedisStorage) Save(article *models.Article) error {
 	ctx := context.Background()
 
 	article.Token = article.GenToken()
+	score := article.GetScore()
 	// 保存文章信息
 	key := fmt.Sprintf(NewsTokenKey, article.Token)
 	if err := s.client.Set(ctx, key, article, 0).Err(); err != nil {
@@ -62,6 +63,7 @@ func (s *RedisStorage) Save(article *models.Article) error {
 	key = fmt.Sprintf(NewsCategoryZSetKey, article.Category)
 	if err := s.client.ZAdd(ctx, key, redis.Z{
 		Member: article.Token,
+		Score:  score,
 	}).Err(); err != nil {
 		return err
 	}
@@ -70,6 +72,7 @@ func (s *RedisStorage) Save(article *models.Article) error {
 	key = fmt.Sprintf(NewsOriginZSetKey, article.From)
 	if err := s.client.ZAdd(ctx, key, redis.Z{
 		Member: article.Token,
+		Score:  score,
 	}).Err(); err != nil {
 		return err
 	}
@@ -83,6 +86,7 @@ func (s *RedisStorage) Save(article *models.Article) error {
 	// 保存所有文章 token 列表
 	if err := s.client.ZAdd(ctx, NewsAllTokensZSetKey, redis.Z{
 		Member: article.Token,
+		Score:  score,
 	}).Err(); err != nil {
 		return err
 	}
