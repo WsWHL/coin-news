@@ -8,6 +8,9 @@ type config struct {
 		Mode string
 		Addr string
 	}
+	Scrapy struct {
+		Crontab string
+	}
 	Mysql struct {
 		Host     string
 		Port     int

@@ -2,6 +2,9 @@
 mode = "debug"
 addr = ":8080"
 
+[scrapy]
+crontab = "@every 1h"
+
 [mysql]
 host = "localhost"
 port = 3306

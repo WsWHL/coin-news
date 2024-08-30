@@ -82,7 +82,7 @@ func newQueue(plugins ...pluginFunc) *queue.Queue {
 	}))
 }
 
-func StartTask() {
+func StartScrapyTask() {
 	logger.Info("Starting task...")
 
 	// restore articles from storage if exists

@@ -114,15 +114,19 @@ type ElasticsearchStorage struct {
 }
 
 func NewElasticsearchStorage() *ElasticsearchStorage {
+	log := &elastictransport.JSONLogger{
+		Output: os.Stdout,
+	}
+	if config.Cfg.API.Mode == "debug" {
+		log.EnableRequestBody = true
+		log.EnableResponseBody = true
+	}
+
 	client, err := elasticsearch.NewClient(elasticsearch.Config{
 		Addresses: []string{config.Cfg.Elastic.Addr},
 		Username:  config.Cfg.Elastic.Username,
 		Password:  config.Cfg.Elastic.Password,
-		Logger: &elastictransport.JSONLogger{
-			Output:             os.Stdout,
-			EnableRequestBody:  true,
-			EnableResponseBody: true,
-		},
+		Logger:    log,
 	})
 	if err != nil {
 		panic(err)
