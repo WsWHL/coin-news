@@ -53,7 +53,7 @@ func (b *BinanceScrapy) OnListAPI(body []byte, category models.CategoryTypes) mo
 
 func (b *BinanceScrapy) Run() error {
 	// most reads
-	url := fmt.Sprintf("%s/bapi/composite/v3/friendly/pgc/content/article/list?pageIndex=1&pageSize=30&type=1", b.domain)
+	url := fmt.Sprintf("%s/bapi/composite/v3/friendly/pgc/content/article/list?pageIndex=1&pageSize=20&type=1", b.domain)
 	s := NewScrapy(url).WithHeader(map[string]string{
 		"content-type": "application/json",
 		"clienttype":   "web",
@@ -72,7 +72,7 @@ func (b *BinanceScrapy) Run() error {
 	s.Start()
 
 	// latest
-	url = fmt.Sprintf("%s/bapi/composite/v4/friendly/pgc/feed/news/list?pageIndex=1&pageSize=30&strategy=6&tagId=0&featured=false", b.domain)
+	url = fmt.Sprintf("%s/bapi/composite/v4/friendly/pgc/feed/news/list?pageIndex=1&pageSize=20&strategy=6&tagId=0&featured=false", b.domain)
 	s1 := s.Clone(url)
 	s1.OnResponse(func(r *colly.Response) {
 		if r.StatusCode != 200 {

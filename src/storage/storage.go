@@ -57,26 +57,28 @@ func (s *Service) Get(token string) (*models.Article, error) {
 }
 
 func (s *Service) Save(article *models.Article) error {
-	var err error
+	var errs []error
 	s.fetch(func(store Strategy) bool {
-		if e := store.Save(article); e != nil {
-			err = errors.Join(err, e)
+		if err := store.Save(article); err != nil {
+			errs = append(errs, err)
 		}
 
 		return false // 每个存储都需要保存
 	})
 
-	return err
+	return errors.Join(errs...)
 }
 
 func (s *Service) SaveCoin(article *models.Article) error {
-	var err error
+	var errs []error
 	s.fetch(func(store Strategy) bool {
-		_ = store.SaveCoin(article)
-		return false // 每个存储都需要保存
+		if err := store.SaveCoin(article); err != nil {
+			errs = append(errs, err)
+		}
+		return false
 	})
 
-	return err
+	return errors.Join(errs...)
 }
 
 func (s *Service) GetHomeList(category string, page, size int) ([]*models.Article, int64) {
@@ -179,13 +181,13 @@ func (s *Service) NewsSearch(keyword string, page, size int) ([]*models.Article,
 }
 
 func (s *Service) Restore() error {
-	var err error
+	var errs []error
 	s.fetch(func(store Strategy) bool {
-		if e := store.Restore(); e != nil {
-			err = errors.Join(err, e)
+		if err := store.Restore(); err != nil {
+			errs = append(errs, err)
 		}
 		return false // 每个存储都需要恢复
 	})
 
-	return err
+	return errors.Join(errs...)
 }

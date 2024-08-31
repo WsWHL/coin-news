@@ -144,6 +144,9 @@ func NewElasticsearchStorage() *ElasticsearchStorage {
 	}
 	logger.Debugf("Elasticsearch cluster info: %s", info)
 
+	// init index if not exists
+	_ = elastic.init()
+
 	return elastic
 }
 
@@ -159,12 +162,23 @@ func (s *ElasticsearchStorage) Save(article *models.Article) error {
 		return err
 	}
 
+	if resp.StatusCode == http.StatusConflict {
+		body, _ := json.Marshal(map[string]interface{}{
+			"doc": article,
+		})
+		resp, err = s.client.Update(s.index, article.Token, bytes.NewReader(body))
+		if err != nil {
+			logger.Errorf("Error updating article in Elasticsearch: %v", err)
+			return err
+		}
+	}
+
 	logger.Infof("Saved article to Elasticsearch: %s", resp)
 	return nil
 }
 
 func (s *ElasticsearchStorage) SaveCoin(article *models.Article) error {
-	return errors.New("not implemented")
+	return nil
 }
 
 func (s *ElasticsearchStorage) GetHomeList(category string, page, size int) ([]*models.Article, int64, error) {

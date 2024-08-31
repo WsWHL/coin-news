@@ -10,6 +10,7 @@ import (
 	"github.com/gocolly/colly"
 	"github.com/gocolly/colly/debug"
 	"github.com/golang-queue/queue"
+	"math/rand"
 	"net"
 	"net/http"
 	"net/url"
@@ -107,7 +108,7 @@ func (s *Scrapy) Start() {
 	})
 
 	s.c.OnError(func(r *colly.Response, err error) {
-		logger.Errorf("Request URL: %s, status_code: %d, error: %s", r.Request.URL, r.StatusCode, err)
+		logger.Errorf("Request URL: %s, status_code: %d, error: %s\nbody: %s", r.Request.URL, r.StatusCode, err, r.Body)
 
 		// If the request fails, using browser scraping retry the request
 		if r.StatusCode == http.StatusForbidden {
@@ -125,6 +126,10 @@ func (s *Scrapy) Start() {
 			}
 		}
 	})
+
+	// Delay random seconds before scraping
+	seconds := rand.Intn(5)
+	time.Sleep(time.Duration(seconds) * time.Second)
 
 	if err := s.c.Visit(s.url); err != nil {
 		logger.Errorf("url: %s, error: %s", s.url, err)
@@ -178,6 +183,10 @@ func (b *BrowserScrapy) OnResponse(f colly.ResponseCallback) {
 func (b *BrowserScrapy) Start() {
 	defer b.cancel()
 
+	// Delay random seconds before scraping
+	seconds := rand.Intn(5)
+	time.Sleep(time.Duration(seconds) * time.Second)
+
 	var html string
 	var jsonText string
 	resp, err := chromedp.RunResponse(b.ctx,
@@ -224,6 +233,10 @@ func (b *BrowserScrapy) Start() {
 				Request:    req,
 			})
 		}
+	}
+
+	if resp.Status != http.StatusOK {
+		logger.Errorf("Request URL: %s, status_code: %d, status_text: %s\nbody: %s", b.url, resp.Status, resp.StatusText, html)
 	}
 }
 

@@ -40,7 +40,7 @@ func (s *MySQLStorage) Save(article *models.Article) error {
 }
 
 func (s *MySQLStorage) SaveCoin(article *models.Article) error {
-	return errors.New("not implemented")
+	return nil
 }
 
 func (s *MySQLStorage) GetHomeList(category string, page, size int) ([]*models.Article, int64, error) {
@@ -68,5 +68,5 @@ func (s *MySQLStorage) NewsSearch(keyword string, page, size int) ([]*models.Art
 }
 
 func (s *MySQLStorage) Restore() error {
-	return errors.New("not implemented")
+	return nil
 }
