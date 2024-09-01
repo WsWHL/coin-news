@@ -173,7 +173,7 @@ func (t *TheDefiantScrapy) Run() error {
 		title := e.ChildText("h3 a")
 		link := e.ChildAttr("h3 a", "href")
 		image := e.ChildAttr("a img", "src")
-		date := e.ChildText(fmt.Sprintf("main div.grid div.flex div.grid:last-of-type div.flex-row:nth-of-type(%d) > div > div", e.Index+1))
+		date := strings.TrimSpace(e.DOM.Get(0).FirstChild.LastChild.FirstChild.Data)
 
 		var pubDate time.Time
 		if p, err := t.ParseRelativeTime(date); err == nil {
