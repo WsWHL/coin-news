@@ -111,12 +111,12 @@ func (t *TheDefiantScrapy) OnNewsList(url string, category models.CategoryTypes)
 	articles := make([]models.Article, 0, 30)
 
 	s := NewBrowserScrapy(url)
-	s.OnCallback("main > section:last-of-type > div:first-of-type > div", func(e *colly.HTMLElement) {
+	s.OnCallback("main section.mt-4 > div:first-of-type > div", func(e *colly.HTMLElement) {
 		title := e.ChildText("div:nth-of-type(2) a h3")
 		link := e.ChildAttr("div:nth-of-type(2) div a:last-of-type", "href")
 		description := e.ChildText("div:nth-of-type(2) div.text-base")
 		image := e.ChildAttr("div:nth-of-type(2) img.object-cover", "src")
-		date := e.ChildText(fmt.Sprintf("main > section:last-of-type > div:first-of-type > div:nth-of-type(%d) > div:first-of-type", e.Index+1))
+		date := strings.TrimSpace(e.DOM.Get(0).FirstChild.LastChild.Data)
 
 		var pubDate time.Time
 		if p, err := t.ParseRelativeTime(date); err == nil {

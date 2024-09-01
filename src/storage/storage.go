@@ -2,10 +2,17 @@ package storage
 
 import (
 	"errors"
+	"news/src/logger"
 	"news/src/models"
 )
 
+var (
+	versionChan chan int64
+)
+
 type Strategy interface {
+	GetVersion() (int64, error)
+	SetVersion(version int64)
 	Get(token string) (*models.Article, error)
 	Save(article *models.Article) error
 	SaveCoin(article *models.Article) error
@@ -20,16 +27,64 @@ type Strategy interface {
 
 type Service struct {
 	storages []Strategy
+
+	quit chan struct{}
+}
+
+func init() {
+	versionChan = make(chan int64, 1)
 }
 
 func NewService() *Service {
+	r := NewRedisStorage(0)
+	version, _ := r.GetVersion()
+	s := NewServiceWithVersion(version)
+
+	// 监听版本变化
+	go listenVersion(s)
+
+	return s
+}
+
+func NewServiceWithVersion(version int64) *Service {
+	logger.Infof("Initializing service with data version: %d", version)
 	return &Service{
 		storages: []Strategy{
-			NewMySQLStorage(),
-			NewRedisStorage(),
-			NewElasticsearchStorage(),
+			NewMySQLStorage(version),
+			NewRedisStorage(version),
+			NewElasticsearchStorage(version),
 		},
+		quit: make(chan struct{}, 1),
 	}
+}
+
+func listenVersion(s *Service) {
+	for {
+		select {
+		case version := <-versionChan:
+			for _, store := range s.storages {
+				store.SetVersion(version)
+			}
+			logger.Infof("Received version change: %d", version)
+		case <-s.quit:
+			logger.Infof("Service stopped.")
+			return
+		}
+	}
+}
+
+func NotifyVersion(version int64) {
+	versionChan <- version
+}
+
+func (s *Service) SetVersion(version int64) {
+	for _, store := range s.storages {
+		store.SetVersion(version)
+	}
+}
+
+func (s *Service) Release() {
+	close(s.quit)
 }
 
 func (s *Service) fetch(f func(Strategy) bool) {

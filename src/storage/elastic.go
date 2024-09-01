@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/elastic/elastic-transport-go/v8/elastictransport"
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/elastic/go-elasticsearch/v8/typedapi/core/search"
@@ -12,6 +13,7 @@ import (
 	"news/src/logger"
 	"news/src/models"
 	"os"
+	"sort"
 	"strings"
 )
 
@@ -113,7 +115,7 @@ type ElasticsearchStorage struct {
 	index  string
 }
 
-func NewElasticsearchStorage() *ElasticsearchStorage {
+func NewElasticsearchStorage(version int64) *ElasticsearchStorage {
 	log := &elastictransport.JSONLogger{
 		Output: os.Stdout,
 	}
@@ -136,6 +138,9 @@ func NewElasticsearchStorage() *ElasticsearchStorage {
 		client: client,
 		index:  config.Cfg.Elastic.Index,
 	}
+	if version > 0 {
+		elastic.index = fmt.Sprintf("%s.%d", config.Cfg.Elastic.Index, version)
+	}
 
 	info, err := elastic.client.Info()
 	if err != nil {
@@ -148,6 +153,16 @@ func NewElasticsearchStorage() *ElasticsearchStorage {
 	_ = elastic.init()
 
 	return elastic
+}
+
+func (s *ElasticsearchStorage) GetVersion() (int64, error) {
+	return 0, errors.New("not implemented")
+}
+
+func (s *ElasticsearchStorage) SetVersion(version int64) {
+	if version > 0 {
+		s.index = fmt.Sprintf("%s.%d", config.Cfg.Elastic.Index, version)
+	}
 }
 
 func (s *ElasticsearchStorage) Get(token string) (*models.Article, error) {
@@ -219,6 +234,7 @@ func (s *ElasticsearchStorage) NewsSearch(keyword string, page, size int) ([]*mo
 		logger.Errorf("Error searching articles in Elasticsearch: %v", err)
 		return nil, 0, err
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusOK {
 		body := search.Response{}
@@ -242,17 +258,39 @@ func (s *ElasticsearchStorage) NewsSearch(keyword string, page, size int) ([]*mo
 }
 
 func (s *ElasticsearchStorage) Restore() error {
-	resp, err := s.client.Indices.Delete([]string{s.index})
+	mixIndex := fmt.Sprintf("%s.*", config.Cfg.Elastic.Index)
+	resp, err := s.client.Cat.Indices(s.client.Cat.Indices.WithIndex(mixIndex), s.client.Cat.Indices.WithFormat("JSON"))
 	if err != nil {
-		logger.Errorf("Error deleting index: %v", err)
+		logger.Errorf("Error getting indices: %v", err)
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil
+	}
+
+	body := make([]struct {
+		Index string `json:"index"`
+	}, 0)
+	if err = json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		logger.Errorf("Error unmarshalling index list: %v", err)
 		return err
 	}
 
-	logger.Infof("Deleted index: %s", resp)
+	if len(body) > 3 {
+		indexes := make([]string, 0, len(body))
+		for _, i := range body {
+			indexes = append(indexes, i.Index)
+		}
+		sort.Strings(indexes)
+		indexes = indexes[:len(indexes)-3] // keep last 3 versions
 
-	// Create index
-	if err = s.init(); err != nil {
-		return err
+		resp, err = s.client.Indices.Delete(indexes)
+		if err != nil {
+			logger.Errorf("Error deleting old indices: %v", err)
+			return err
+		}
 	}
 
 	return nil

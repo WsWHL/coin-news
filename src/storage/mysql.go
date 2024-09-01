@@ -11,10 +11,17 @@ type MySQLStorage struct {
 	DB *gorm.DB
 }
 
-func NewMySQLStorage() *MySQLStorage {
+func NewMySQLStorage(version int64) *MySQLStorage {
 	return &MySQLStorage{
 		DB: models.DB,
 	}
+}
+
+func (s *MySQLStorage) GetVersion() (int64, error) {
+	return 0, errors.New("not implemented")
+}
+
+func (s *MySQLStorage) SetVersion(version int64) {
 }
 
 func (s *MySQLStorage) Get(token string) (*models.Article, error) {

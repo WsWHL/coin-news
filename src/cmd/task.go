@@ -87,11 +87,21 @@ func StartScrapyTask() {
 	logger.Info("Starting task...")
 
 	// restore articles from storage if exists
-	s = storage.NewService()
-	err := s.Restore()
-	if err != nil {
-		panic(err)
-	}
+	dataVersion := time.Now().Unix()
+	s = storage.NewServiceWithVersion(dataVersion)
+	defer func() {
+		if err := recover(); err != nil {
+			logger.Errorf("Scrapy task failed: %s", err)
+			return
+		}
+
+		s.SetVersion(dataVersion)
+		storage.NotifyVersion(dataVersion)
+		if err := s.Restore(); err != nil {
+			logger.Errorf("Restoring articles failed: %s", err)
+			return
+		}
+	}()
 
 	// start scraping
 	for _, c := range scrapers {

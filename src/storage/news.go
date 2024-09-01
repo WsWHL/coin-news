@@ -18,6 +18,10 @@ func NewNewsService() *NewsService {
 	}
 }
 
+func (s *NewsService) Release() {
+	s.store.Release()
+}
+
 // HomeHandler 主页
 func (s *NewsService) HomeHandler(c *utils.ApiContext) {
 	req := struct {

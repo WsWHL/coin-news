@@ -8,7 +8,7 @@ import (
 	"news/src/config"
 	"news/src/logger"
 	"news/src/models"
-	"strings"
+	"strconv"
 )
 
 const (
@@ -20,13 +20,17 @@ const (
 
 	CoinSlugsListKey = "coin:slugs:%s"      // 指定币文章列表
 	CoinNewsTokenKey = "coin:news:token:%s" // 币种文章信息
+
+	DataVersionZSetKye = "data:versions" // 数据版本列表
 )
 
 type RedisStorage struct {
 	client *redis.Client
+
+	dataVersion int64
 }
 
-func NewRedisStorage() *RedisStorage {
+func NewRedisStorage(version int64) *RedisStorage {
 	r := config.Cfg.Redis
 	return &RedisStorage{
 		client: redis.NewClient(&redis.Options{
@@ -34,13 +38,50 @@ func NewRedisStorage() *RedisStorage {
 			Password: r.Password,
 			DB:       r.DB,
 		}),
+		dataVersion: version,
 	}
+}
+
+func (s *RedisStorage) sKey(key string, args ...interface{}) string {
+	if s.dataVersion > 0 {
+		key = fmt.Sprintf("%d:%s", s.dataVersion, key)
+	}
+
+	return fmt.Sprintf(key, args...)
+}
+
+func (s *RedisStorage) GetVersion() (int64, error) {
+	// get data version from redis
+	ctx := context.Background()
+	versions, err := s.client.ZRevRange(ctx, DataVersionZSetKye, 0, 0).Result()
+	if err != nil {
+		return 0, err
+	}
+
+	if len(versions) > 0 {
+		v, _ := strconv.Atoi(versions[0])
+		s.dataVersion = int64(v)
+	}
+
+	return s.dataVersion, nil
+}
+
+func (s *RedisStorage) SetVersion(version int64) {
+	err := s.client.ZAdd(context.Background(), DataVersionZSetKye, redis.Z{
+		Member: strconv.Itoa(int(version)),
+		Score:  float64(version),
+	}).Err()
+	if err != nil {
+		logger.Errorf("set data version error: %v", err)
+	}
+
+	s.dataVersion = version
 }
 
 func (s *RedisStorage) Get(token string) (*models.Article, error) {
 	article := &models.Article{}
 
-	key := fmt.Sprintf(NewsTokenKey, token)
+	key := s.sKey(NewsTokenKey, token)
 	if err := s.client.Get(context.Background(), key).Scan(article); err != nil {
 		return nil, err
 	}
@@ -54,13 +95,13 @@ func (s *RedisStorage) Save(article *models.Article) error {
 	article.Token = article.GenToken()
 	score := article.GetScore()
 	// 保存文章信息
-	key := fmt.Sprintf(NewsTokenKey, article.Token)
+	key := s.sKey(NewsTokenKey, article.Token)
 	if err := s.client.Set(ctx, key, article, 0).Err(); err != nil {
 		return err
 	}
 
 	// 保存到分类集合
-	key = fmt.Sprintf(NewsCategoryZSetKey, article.Category)
+	key = s.sKey(NewsCategoryZSetKey, article.Category)
 	if err := s.client.ZAdd(ctx, key, redis.Z{
 		Member: article.Token,
 		Score:  score,
@@ -69,7 +110,7 @@ func (s *RedisStorage) Save(article *models.Article) error {
 	}
 
 	// 保存到网站集合
-	key = fmt.Sprintf(NewsOriginZSetKey, article.From)
+	key = s.sKey(NewsOriginZSetKey, article.From)
 	if err := s.client.ZAdd(ctx, key, redis.Z{
 		Member: article.Token,
 		Score:  score,
@@ -78,13 +119,14 @@ func (s *RedisStorage) Save(article *models.Article) error {
 	}
 
 	// 保存类别来源列表
-	key = fmt.Sprintf(NewsOriginsSetKey, article.Category)
+	key = s.sKey(NewsOriginsSetKey, article.Category)
 	if err := s.client.SAdd(ctx, key, article.From).Err(); err != nil {
 		return err
 	}
 
 	// 保存所有文章 token 列表
-	if err := s.client.ZAdd(ctx, NewsAllTokensZSetKey, redis.Z{
+	key = s.sKey(NewsAllTokensZSetKey)
+	if err := s.client.ZAdd(ctx, key, redis.Z{
 		Member: article.Token,
 		Score:  score,
 	}).Err(); err != nil {
@@ -99,13 +141,13 @@ func (s *RedisStorage) SaveCoin(article *models.Article) error {
 
 	article.Token = article.GenToken()
 	// 保存币种文章列表
-	key := fmt.Sprintf(CoinSlugsListKey, article.Category)
+	key := s.sKey(CoinSlugsListKey, article.Category)
 	if err := s.client.LPush(ctx, key, article.Token).Err(); err != nil {
 		return err
 	}
 
 	// 保存文章信息
-	key = fmt.Sprintf(CoinNewsTokenKey, article.Token)
+	key = s.sKey(CoinNewsTokenKey, article.Token)
 	if err := s.client.Set(ctx, key, article, 0).Err(); err != nil {
 		return err
 	}
@@ -119,9 +161,9 @@ func (s *RedisStorage) GetHomeList(category string, page, size int) ([]*models.A
 		count    int64
 	)
 
-	key := NewsAllTokensZSetKey
+	key := s.sKey(NewsAllTokensZSetKey)
 	if category != "" {
-		key = fmt.Sprintf(NewsCategoryZSetKey, category)
+		key = s.sKey(NewsCategoryZSetKey, category)
 	}
 
 	start := int64((page - 1) * size)
@@ -144,10 +186,10 @@ func (s *RedisStorage) GetHomeList(category string, page, size int) ([]*models.A
 func (s *RedisStorage) GetReadList(origins []string, category string) (map[string][]*models.Article, error) {
 	keys := make([]string, 0, 10)
 	for _, origin := range origins {
-		keys = append(keys, fmt.Sprintf(NewsOriginZSetKey, origin))
+		keys = append(keys, s.sKey(NewsOriginZSetKey, origin))
 	}
 	if category != "" {
-		keys = append(keys, fmt.Sprintf(NewsCategoryZSetKey, category))
+		keys = append(keys, s.sKey(NewsCategoryZSetKey, category))
 	}
 	if len(keys) == 0 {
 		return nil, nil
@@ -171,7 +213,7 @@ func (s *RedisStorage) GetReadList(origins []string, category string) (map[strin
 }
 
 func (s *RedisStorage) GetListByCategory(category string) ([]*models.Article, error) {
-	key := fmt.Sprintf(NewsCategoryZSetKey, category)
+	key := s.sKey(NewsCategoryZSetKey, category)
 	tokens, err := s.client.ZRange(context.Background(), key, 0, -1).Result()
 	if err != nil {
 		return nil, err
@@ -191,7 +233,7 @@ func (s *RedisStorage) GetListByOrigin(origin string, page, size int) ([]*models
 	start := int64((page - 1) * size)
 	stop := int64(page*size) - 1
 
-	key := fmt.Sprintf(NewsOriginZSetKey, origin)
+	key := s.sKey(NewsOriginZSetKey, origin)
 	tokens, err := s.client.ZRevRange(context.Background(), key, start, stop).Result()
 	if err != nil {
 		return nil, 0, err
@@ -209,7 +251,7 @@ func (s *RedisStorage) GetListByOrigin(origin string, page, size int) ([]*models
 }
 
 func (s *RedisStorage) GetOriginsByCategory(category string) ([]string, error) {
-	key := fmt.Sprintf(NewsOriginsSetKey, category)
+	key := s.sKey(NewsOriginsSetKey, category)
 	origins, err := s.client.SMembers(context.Background(), key).Result()
 	if err != nil {
 		return nil, err
@@ -225,28 +267,27 @@ func (s *RedisStorage) NewsSearch(keyword string, page, size int) ([]*models.Art
 func (s *RedisStorage) Restore() error {
 	ctx := context.Background()
 
-	keys := []string{
-		NewsCategoryZSetKey,
-		NewsOriginZSetKey,
-		NewsAllTokensZSetKey,
-		NewsOriginsSetKey,
-		NewsTokenKey,
-		CoinSlugsListKey,
-		CoinNewsTokenKey,
+	versions, err := s.client.ZRevRange(ctx, DataVersionZSetKye, 3, -1).Result()
+	if err != nil {
+		logger.Errorf("Error getting data version: %v", err)
+		return err
 	}
 
-	for _, key := range keys {
-		if strings.Contains(key, "%s") {
-			key = fmt.Sprintf(key, "*")
+	for _, version := range versions {
+		v, _ := strconv.Atoi(version)
+		if v <= 0 {
+			continue
 		}
-		keyList, err := s.client.Keys(ctx, key).Result()
+
+		key := fmt.Sprintf("%d:*", v)
+		keys, err := s.client.Keys(ctx, key).Result()
 		if err != nil {
 			logger.Errorf("Error restoring key: %s, error: %v", key, err)
 			continue
 		}
 
-		if len(keyList) > 0 {
-			if err = s.client.Del(ctx, keyList...).Err(); err != nil {
+		if len(keys) > 0 {
+			if err = s.client.Del(ctx, keys...).Err(); err != nil {
 				logger.Errorf("Error deleting key: %s, error: %v", key, err)
 			}
 		}

@@ -11,7 +11,7 @@ import (
 )
 
 // router sets up the API routes.
-func router(g *gin.Engine) {
+func router(g *gin.Engine, ns *storage.NewsService) {
 	// Ping test
 	g.GET("/ping", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
@@ -20,22 +20,25 @@ func router(g *gin.Engine) {
 	})
 
 	// News API
-	s := storage.NewNewsService()
-	g.GET("/news/articles/token/:token", utils.ApiHandle(s.HomeLinkHandler))
-	g.POST("/news/home", utils.ApiHandle(s.HomeHandler))
-	g.POST("/news/sitemap/:category/:lang", utils.ApiHandle(s.HomeListHandler))
-	g.POST("/news/origins", utils.ApiHandle(s.HomeOriginListHandler))
-	g.POST("/news/reads", utils.ApiHandle(s.NewsReadListHandler))
-	g.POST("/news/:origin", utils.ApiHandle(s.NewsOriginListHandler))
-	g.POST("/news/search", utils.ApiHandle(s.NewsSearchHandler))
+	g.GET("/news/articles/token/:token", utils.ApiHandle(ns.HomeLinkHandler))
+	g.POST("/news/home", utils.ApiHandle(ns.HomeHandler))
+	g.POST("/news/sitemap/:category/:lang", utils.ApiHandle(ns.HomeListHandler))
+	g.POST("/news/origins", utils.ApiHandle(ns.HomeOriginListHandler))
+	g.POST("/news/reads", utils.ApiHandle(ns.NewsReadListHandler))
+	g.POST("/news/:origin", utils.ApiHandle(ns.NewsOriginListHandler))
+	g.POST("/news/search", utils.ApiHandle(ns.NewsSearchHandler))
 }
 
 func StartAPIServer() {
 	gin.SetMode(config.Cfg.API.Mode)
 
+	// Initialize news service
+	ns := storage.NewNewsService()
+	defer ns.Release()
+
 	g := gin.New()
 	g.Use(gin.Logger(), gin.Recovery())
-	router(g)
+	router(g, ns)
 
 	svc := http.Server{
 		Addr:           config.Cfg.API.Addr,
