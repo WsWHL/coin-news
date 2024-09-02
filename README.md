@@ -16,6 +16,7 @@ addr = ":8080"
 
 # 爬虫配置
 [scrapy]
+threshold = 0.8  # 文章标题重复相似度
 crontab = "@every 1h"
 ua = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
 

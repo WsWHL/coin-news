@@ -9,8 +9,9 @@ type config struct {
 		Addr string
 	}
 	Scrapy struct {
-		Crontab string
-		UA      string
+		Threshold float64
+		Crontab   string
+		UA        string
 	}
 	Mysql struct {
 		Host     string

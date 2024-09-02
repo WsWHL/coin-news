@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"github.com/golang-queue/queue"
 	"github.com/golang-queue/queue/core"
 	"news/src/config"
@@ -13,6 +14,7 @@ import (
 	"news/src/utils"
 	"reflect"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -22,7 +24,7 @@ var (
 	s        *storage.Service
 )
 
-type pluginFunc func(article *models.Article)
+type pluginFunc func(article *models.Article) error
 
 func translateTitle() pluginFunc {
 	translator, err := utils.NewTranslate(config.Cfg.Kimi.Prompt)
@@ -30,23 +32,53 @@ func translateTitle() pluginFunc {
 		panic(err)
 	}
 
-	return func(article *models.Article) {
+	return func(article *models.Article) error {
 		if article.From == "jinse" || article.From == "bitpie" { // 金色财经和比特派为中文数据
 			article.TitleCN = article.Title
-		}
-
-		if article.Title != "" && article.TitleCN == "" {
+			article.Title, _ = translator.Send(article.Title)
+		} else if article.Title != "" && article.TitleCN == "" {
 			article.TitleCN, _ = translator.Send(article.Title)
 		}
+
+		return nil
 	}
 }
 
 func searchImage() pluginFunc {
 	g := utils.NewGoogleSearch(context.Background())
-	return func(article *models.Article) {
+	return func(article *models.Article) error {
 		if article.Image == "" {
 			article.Image, _ = g.Search(article.Title)
 		}
+
+		return nil
+	}
+}
+
+func removeDuplicates(threshold float64) pluginFunc {
+	lock := sync.Mutex{}
+	tm := make(map[string][]string)
+	return func(article *models.Article) error {
+		lock.Lock()
+		defer lock.Unlock()
+
+		key := string(article.Category)
+		titles, ok := tm[key]
+		if !ok {
+			titles = make([]string, 0)
+		}
+
+		if article.Title != "" {
+			if utils.IsUniqueStrings(titles, article.Title, threshold) {
+				titles = append(titles, article.Title)
+				tm[key] = titles
+			} else {
+				logger.Infof("Duplicate title: %s, link: %s", article.Title, article.Link)
+				return errors.New("duplicate title")
+			}
+		}
+
+		return nil
 	}
 }
 
@@ -62,7 +94,10 @@ func newQueue(plugins ...pluginFunc) *queue.Queue {
 
 		// 检查文章信息，自动填充缺失信息
 		for _, p := range plugins {
-			p(article)
+			if err := p(article); err != nil {
+				logger.Errorf("Failed to process article: %s", err)
+				return nil
+			}
 		}
 
 		// 保存文章信息
@@ -130,8 +165,10 @@ func StartScrapyTask() {
 }
 
 func init() {
+	threshold := config.Cfg.Scrapy.Threshold
 	q = newQueue(
 		translateTitle(),
+		removeDuplicates(threshold),
 		searchImage(),
 	)
 
