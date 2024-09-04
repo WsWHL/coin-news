@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/gocolly/colly"
-	"github.com/golang-queue/queue"
 	"news/src/logger"
 	"news/src/models"
 	"strconv"
@@ -19,11 +18,11 @@ type TheDefiantScrapy struct {
 	send   QueueWrapper
 }
 
-func NewTheDefiantScrapy(q *queue.Queue) *TheDefiantScrapy {
+func NewTheDefiantScrapy(q QueueWrapper) *TheDefiantScrapy {
 	return &TheDefiantScrapy{
 		name:   "thedefiant",
 		domain: "https://thedefiant.io",
-		send:   NewQueueWrapper(q),
+		send:   q,
 	}
 }
 

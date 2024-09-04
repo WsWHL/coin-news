@@ -3,7 +3,6 @@ package newsaddr
 import (
 	"database/sql"
 	"github.com/gocolly/colly"
-	"github.com/golang-queue/queue"
 	"news/src/models"
 	"strings"
 	"time"
@@ -16,11 +15,11 @@ type CoinDeskScrapy struct {
 	send   QueueWrapper
 }
 
-func NewCoinDeskScrapy(q *queue.Queue) *CoinDeskScrapy {
+func NewCoinDeskScrapy(q QueueWrapper) *CoinDeskScrapy {
 	return &CoinDeskScrapy{
 		name:   "coindesk",
 		domain: "https://www.coindesk.com",
-		send:   NewQueueWrapper(q),
+		send:   q,
 	}
 }
 
@@ -44,7 +43,7 @@ func (c *CoinDeskScrapy) OnDetails(url string) models.Article {
 
 		pubDate = strings.ReplaceAll(pubDate, "p.m.", "PM")
 		pubDate = strings.ReplaceAll(pubDate, "a.m.", "AM")
-		if t, err := time.Parse("Jan 02, 2006 at 15:04 PM MST", pubDate); err == nil {
+		if t, err := time.Parse("Jan 2, 2006 at 3:04 PM MST", pubDate); err == nil {
 			article.PubDate = sql.NullTime{Time: t, Valid: true}
 		}
 	})

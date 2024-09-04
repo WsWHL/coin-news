@@ -18,11 +18,7 @@ import (
 	"time"
 )
 
-var (
-	scrapers []newsaddr.Scraper
-	q        *queue.Queue
-	s        *storage.Service
-)
+var s *storage.Service
 
 type pluginFunc func(article *models.Article) error
 
@@ -33,19 +29,25 @@ func translateTitle() pluginFunc {
 	}
 
 	return func(article *models.Article) error {
+		if article.TitleCN != "" {
+			return nil
+		}
+
 		if article.From == "jinse" || article.From == "bitpie" { // 金色财经和比特派为中文数据
 			article.TitleCN = article.Title
 			article.Title, _ = translator.Send(article.Title)
-		} else if article.Title != "" && article.TitleCN == "" {
+			article.Title = strings.Split(article.Title, "\n")[0]
+		} else if article.Title != "" {
 			article.TitleCN, _ = translator.Send(article.Title)
+			article.TitleCN = strings.Split(article.TitleCN, "\n")[0]
 		}
 
 		return nil
 	}
 }
 
-func searchImage() pluginFunc {
-	g := utils.NewGoogleSearch(context.Background())
+func searchImage(ctx context.Context) pluginFunc {
+	g := utils.NewGoogleSearch(ctx)
 	return func(article *models.Article) error {
 		if article.Image == "" {
 			article.Image, _ = g.Search(article.Title)
@@ -79,6 +81,94 @@ func removeDuplicates(threshold float64) pluginFunc {
 		}
 
 		return nil
+	}
+}
+
+// newQueueWrapper wraps a queue to send articles to it.
+func newQueueWrapper(q *queue.Queue, quit <-chan struct{}, cancel context.CancelFunc) newsaddr.QueueWrapper {
+	var (
+		mu     sync.Mutex
+		count  = 10
+		list   = make([]models.Article, 0, 100)
+		isOver = false
+	)
+	translator, err := utils.NewTranslate(config.Cfg.Kimi.Prompt)
+	if err != nil {
+		logger.Errorf("Failed to initialize translation: %s", err)
+	}
+	if config.Cfg.Kimi.Tokens > 0 {
+		count = config.Cfg.Kimi.Tokens
+	}
+
+	go func() {
+		defer func() {
+			q.Release() // Release the queue when it's done.
+			cancel()
+			logger.Infof("Finished sending articles to queue.")
+		}()
+
+		for {
+			mu.Lock()
+			if len(list) > 0 {
+				index := count
+				if len(list) < count {
+					index = len(list)
+				}
+
+				items := list[0:index]
+				list = list[index:]
+				mu.Unlock()
+
+				// translate the articles
+				titles := make([]string, len(items))
+				for i, article := range items {
+					titles[i] = article.Title
+				}
+				if r, err := translator.Send(titles...); err == nil {
+					if strings.Contains(r, "\n\n") {
+						titles = strings.Split(r, "\n\n")
+					} else {
+						titles = strings.Split(r, "\n")
+					}
+				}
+
+				for i, article := range items {
+					if i < len(titles) {
+						if article.From == "jinse" || article.From == "bitpie" {
+							article.TitleCN = article.Title
+							article.Title = titles[i]
+						} else {
+							article.TitleCN = titles[i]
+						}
+					}
+					if err = q.Queue(&article); err != nil {
+						logger.Errorf("Failed to send article: %s", err)
+					}
+				}
+				logger.Infof("Sent %d articles to the queue", len(items))
+			} else {
+				mu.Unlock()
+			}
+
+			select {
+			case <-quit:
+				isOver = true
+			default:
+				if isOver && len(list) == 0 {
+					logger.Infof("All articles have been sent to the queue. Quitting...")
+					return
+				} else {
+					time.Sleep(time.Second * 3)
+				}
+			}
+		}
+	}()
+
+	return func(articles ...models.Article) {
+		mu.Lock()
+		defer mu.Unlock()
+
+		list = append(list, articles...)
 	}
 }
 
@@ -118,6 +208,32 @@ func newQueue(plugins ...pluginFunc) *queue.Queue {
 	}))
 }
 
+func getScrapers(quit <-chan struct{}) ([]newsaddr.Scraper, *queue.Queue) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	threshold := config.Cfg.Scrapy.Threshold
+	q := newQueue(
+		translateTitle(),
+		removeDuplicates(threshold),
+		searchImage(ctx),
+	)
+
+	qw := newQueueWrapper(q, quit, cancel)
+	scrapers := []newsaddr.Scraper{
+		newsaddr.NewJinSeScrapy(qw),
+		newsaddr.NewBeinCryptoScrapy(qw),
+		newsaddr.NewBlockWorksScrapy(qw),
+		newsaddr.NewCoinDeskScrapy(qw),
+		newsaddr.NewTheBlockScrapy(qw),
+		newsaddr.NewDecryptScrapy(qw),
+		newsaddr.NewTheDefiantScrapy(qw),
+		newsaddr.NewBinanceScrapy(qw),
+		newsaddr.NewBitPieScrapy(qw),
+	}
+
+	return scrapers, q
+}
+
 func StartScrapyTask() {
 	logger.Info("Starting task...")
 
@@ -139,6 +255,8 @@ func StartScrapyTask() {
 	}()
 
 	// start scraping
+	quit := make(chan struct{})
+	scrapers, q := getScrapers(quit)
 	for _, c := range scrapers {
 		name := reflect.TypeOf(c).Elem().Name()
 		logger.Infof("[%s]Startup scrapy...", name)
@@ -154,33 +272,12 @@ func StartScrapyTask() {
 	}
 
 	// wait for all queue tasks to finish
-	defer q.Release()
-	for q.BusyWorkers() > 0 {
+	for q.BusyWorkers() > 0 || q.SuccessTasks()+q.FailureTasks() < q.SubmittedTasks() {
 		logger.Infof("Waiting for queue tasks to finish. busy workers: %d", q.BusyWorkers())
 		time.Sleep(time.Second)
 	}
+	quit <- struct{}{}
 
 	logger.Infof("Queue task finished. submitted tasks: %d, success tasks: %d, failure tasks: %d", q.SubmittedTasks(), q.SuccessTasks(), q.FailureTasks())
 	logger.Info("Task started successfully.")
-}
-
-func init() {
-	threshold := config.Cfg.Scrapy.Threshold
-	q = newQueue(
-		translateTitle(),
-		removeDuplicates(threshold),
-		searchImage(),
-	)
-
-	scrapers = []newsaddr.Scraper{
-		newsaddr.NewJinSeScrapy(q),
-		newsaddr.NewBeinCryptoScrapy(q),
-		newsaddr.NewBlockWorksScrapy(q),
-		newsaddr.NewCoinDeskScrapy(q),
-		newsaddr.NewTheBlockScrapy(q),
-		newsaddr.NewDecryptScrapy(q),
-		newsaddr.NewTheDefiantScrapy(q),
-		newsaddr.NewBinanceScrapy(q),
-		newsaddr.NewBitPieScrapy(q),
-	}
 }

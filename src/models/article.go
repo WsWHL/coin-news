@@ -70,7 +70,11 @@ func (a *Article) GetTitleByLang(lang string) string {
 }
 
 func (a *Article) GetScore() float64 {
-	return float64(a.Reads + a.Interactions + a.Comments)
+	if a.PubDate.Valid {
+		return float64(a.PubDate.Time.Unix())
+	}
+
+	return 0
 }
 
 type ArticleList []Article

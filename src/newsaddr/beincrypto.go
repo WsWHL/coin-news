@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/gocolly/colly"
-	"github.com/golang-queue/queue"
 	"news/src/logger"
 	"news/src/models"
 	"strings"
@@ -18,11 +17,11 @@ type BeinCryptoScrapy struct {
 	send   QueueWrapper
 }
 
-func NewBeinCryptoScrapy(q *queue.Queue) *BeinCryptoScrapy {
+func NewBeinCryptoScrapy(q QueueWrapper) *BeinCryptoScrapy {
 	return &BeinCryptoScrapy{
 		name:   "beincrypto",
 		domain: "https://www.beincrypto.com",
-		send:   NewQueueWrapper(q),
+		send:   q,
 	}
 }
 
@@ -32,7 +31,7 @@ func (b *BeinCryptoScrapy) OnDetails(url string) (models.Article, bool) {
 		success = false
 	)
 
-	s := NewScrapy(url)
+	s := NewBrowserScrapy(url)
 	s.OnCallback("article div[data-el='main-content']", func(e *colly.HTMLElement) {
 		title := e.ChildText("header h1")
 		image := e.ChildAttr("div.featured-images figure img.bic-featured", "src")
@@ -61,7 +60,7 @@ func (b *BeinCryptoScrapy) OnList(path string, category models.CategoryTypes) mo
 	articles := make([]models.Article, 0, 30)
 
 	url := fmt.Sprintf("%s%s", b.domain, path)
-	s := NewScrapy(url)
+	s := NewBrowserScrapy(url)
 	s.OnCallback("main#bic-main-content > div:nth-of-type(3) > div", func(e *colly.HTMLElement) {
 		title := e.ChildText("h5 a")
 		link := e.ChildAttr("h5 a", "href")
@@ -101,7 +100,7 @@ func (b *BeinCryptoScrapy) Run() error {
 	b.send(opinions...)
 
 	// featured
-	s := NewScrapy(b.domain)
+	s := NewBrowserScrapy(b.domain)
 	s.OnCallback("main#bic-main-content section:nth-of-type(1) > div > div:nth-of-type(1)", func(e *colly.HTMLElement) {
 		title := e.ChildAttr("figure a", "title")
 		link := e.ChildAttr("figure a", "href")

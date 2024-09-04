@@ -3,7 +3,6 @@ package newsaddr
 import (
 	"database/sql"
 	"github.com/gocolly/colly"
-	"github.com/golang-queue/queue"
 	"news/src/models"
 	"strconv"
 	"strings"
@@ -16,11 +15,11 @@ type BitPieScrapy struct {
 	send   QueueWrapper
 }
 
-func NewBitPieScrapy(q *queue.Queue) *BitPieScrapy {
+func NewBitPieScrapy(q QueueWrapper) *BitPieScrapy {
 	return &BitPieScrapy{
 		name:   "bitpie",
 		domain: "https://m.sc5b.net",
-		send:   NewQueueWrapper(q),
+		send:   q,
 	}
 }
 

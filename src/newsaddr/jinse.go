@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/gocolly/colly"
-	"github.com/golang-queue/queue"
 	"github.com/tidwall/gjson"
 	"news/src/logger"
 	"news/src/models"
@@ -17,11 +16,11 @@ type JinSeScrapy struct {
 	send   QueueWrapper
 }
 
-func NewJinSeScrapy(q *queue.Queue) *JinSeScrapy {
+func NewJinSeScrapy(q QueueWrapper) *JinSeScrapy {
 	return &JinSeScrapy{
 		name:   "jinse",
 		domain: "https://www.jinse.cn",
-		send:   NewQueueWrapper(q),
+		send:   q,
 	}
 }
 

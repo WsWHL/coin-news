@@ -41,6 +41,7 @@ index = "news-articles"
 
 # Kimi AI配置
 [kimi]
+tokens = 10 # 批量翻译数量
 key = "sk-g3yv1wms1iZBdKZ61V0UEjN84W2PqZS49Gji2UCARy5AAa5L"
 prompt = "你是一个专业的翻译员，用户输入的是中文则翻译成英文，用户输入的是其他语言则翻译成中文。如果输入的是单词则翻译结果需要小写开头，如果输入的是句子则翻译结果需要注意大小写。请你帮我逐字翻译"
 ```

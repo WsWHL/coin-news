@@ -32,6 +32,7 @@ type config struct {
 		Password string
 	}
 	Kimi struct {
+		Tokens int
 		Key    string
 		Prompt string
 	}

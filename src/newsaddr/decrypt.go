@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/gocolly/colly"
-	"github.com/golang-queue/queue"
 	"github.com/tidwall/gjson"
 	"news/src/logger"
 	"news/src/models"
@@ -19,11 +18,11 @@ type DecryptScrapy struct {
 	send   QueueWrapper
 }
 
-func NewDecryptScrapy(q *queue.Queue) *DecryptScrapy {
+func NewDecryptScrapy(q QueueWrapper) *DecryptScrapy {
 	return &DecryptScrapy{
 		name:   "decrypt",
 		domain: "https://decrypt.co",
-		send:   NewQueueWrapper(q),
+		send:   q,
 	}
 }
 

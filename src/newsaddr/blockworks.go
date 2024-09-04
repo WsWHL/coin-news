@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/gocolly/colly"
-	"github.com/golang-queue/queue"
 	"news/src/logger"
 	"news/src/models"
 	"strings"
@@ -18,11 +17,11 @@ type BlockWorksScrapy struct {
 	send   QueueWrapper
 }
 
-func NewBlockWorksScrapy(q *queue.Queue) *BlockWorksScrapy {
+func NewBlockWorksScrapy(q QueueWrapper) *BlockWorksScrapy {
 	return &BlockWorksScrapy{
 		name:   "blockworks",
 		domain: "https://blockworks.co",
-		send:   NewQueueWrapper(q),
+		send:   q,
 	}
 }
 

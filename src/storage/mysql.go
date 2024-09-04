@@ -47,7 +47,18 @@ func (s *MySQLStorage) Save(article *models.Article) error {
 }
 
 func (s *MySQLStorage) SaveCoin(article *models.Article) error {
-	return nil
+	existingArticle := &models.Article{}
+	article.Token = article.GenToken()
+	s.DB.Model(existingArticle).Where("title = ?", article.Title).First(existingArticle)
+	if existingArticle.ID > 0 {
+		article.ID = existingArticle.ID
+		article.CreateTime = existingArticle.CreateTime
+	} else {
+		article.CreateTime = time.Now()
+	}
+
+	article.UpdateTime = time.Now()
+	return s.DB.Save(article).Error
 }
 
 func (s *MySQLStorage) GetHomeList(category string, page, size int) ([]*models.Article, int64, error) {

@@ -274,12 +274,7 @@ func (s *RedisStorage) Restore() error {
 	}
 
 	for _, version := range versions {
-		v, _ := strconv.Atoi(version)
-		if v <= 0 {
-			continue
-		}
-
-		key := fmt.Sprintf("%d:*", v)
+		key := fmt.Sprintf("%s:*", version)
 		keys, err := s.client.Keys(ctx, key).Result()
 		if err != nil {
 			logger.Errorf("Error restoring key: %s, error: %v", key, err)
@@ -291,6 +286,7 @@ func (s *RedisStorage) Restore() error {
 				logger.Errorf("Error deleting key: %s, error: %v", key, err)
 			}
 		}
+		s.client.ZRem(ctx, DataVersionZSetKye, version)
 	}
 
 	return nil

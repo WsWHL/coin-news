@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/gocolly/colly"
-	"github.com/golang-queue/queue"
 	"news/src/models"
 	"strings"
 	"time"
@@ -17,11 +16,11 @@ type TheBlockScrapy struct {
 	send   QueueWrapper
 }
 
-func NewTheBlockScrapy(q *queue.Queue) *TheBlockScrapy {
+func NewTheBlockScrapy(q QueueWrapper) *TheBlockScrapy {
 	return &TheBlockScrapy{
 		name:   "theblock",
 		domain: "https://www.theblock.co",
-		send:   NewQueueWrapper(q),
+		send:   q,
 	}
 }
 
@@ -37,7 +36,7 @@ func (b *TheBlockScrapy) OnDetails(url string) models.Article {
 		description := e.ChildText("div.quickTake ul li:nth-of-type(1) span")
 
 		pubDate = strings.Split(pubDate, "•")[1][1:]
-		if t, err := time.Parse("January 02, 2006, 15:04PM MST", pubDate); err == nil {
+		if t, err := time.Parse("January 2, 2006, 3:04PM MST", pubDate); err == nil {
 			article.PubDate = sql.NullTime{Time: t, Valid: true}
 		}
 
@@ -75,7 +74,7 @@ func (b *TheBlockScrapy) Run() error {
 		date := e.ChildText("div.meta__timestamp")
 
 		pubDate := sql.NullTime{}
-		if t, err := time.Parse("January 02, 2006, 15:04PM MST", date); err == nil {
+		if t, err := time.Parse("January 2, 2006, 3:04PM MST", date); err == nil {
 			pubDate.Time = t
 			pubDate.Valid = true
 		}
@@ -99,7 +98,7 @@ func (b *TheBlockScrapy) Run() error {
 		date := e.ChildText("div.meta__timestamp")
 
 		pubDate := sql.NullTime{}
-		if t, err := time.Parse("January 02, 2006, 15:04PM MST", date); err == nil {
+		if t, err := time.Parse("January 2, 2006, 3:04PM MST", date); err == nil {
 			pubDate.Time = t
 			pubDate.Valid = true
 		}

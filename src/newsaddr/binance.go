@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/gocolly/colly"
-	"github.com/golang-queue/queue"
 	"github.com/tidwall/gjson"
 	"news/src/logger"
 	"news/src/models"
@@ -18,11 +17,11 @@ type BinanceScrapy struct {
 	send   QueueWrapper
 }
 
-func NewBinanceScrapy(q *queue.Queue) *BinanceScrapy {
+func NewBinanceScrapy(q QueueWrapper) *BinanceScrapy {
 	return &BinanceScrapy{
 		name:   "binance",
 		domain: "https://www.binance.com",
-		send:   NewQueueWrapper(q),
+		send:   q,
 	}
 }
 
