@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"news/src/config"
@@ -37,7 +38,7 @@ func StartAPIServer() {
 	defer ns.Release()
 
 	g := gin.New()
-	g.Use(gin.Logger(), gin.Recovery())
+	g.Use(gin.Logger(), gin.Recovery(), cors.Default())
 	router(g, ns)
 
 	svc := http.Server{

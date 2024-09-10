@@ -11,13 +11,17 @@ func main() {
 	logger.Info("Starting server...")
 
 	// start scrapy task scheduler
-	c := cron.New()
-	id, err := c.AddFunc(config.Cfg.Scrapy.Crontab, cmd.StartScrapyTask)
-	if err != nil {
-		panic(err)
-	}
-	c.Start()
-	logger.Infof("Added task with ID: %d", id)
+	go func() {
+		cmd.StartScrapyTask()
+
+		c := cron.New()
+		id, err := c.AddFunc(config.Cfg.Scrapy.Crontab, cmd.StartScrapyTask)
+		if err != nil {
+			panic(err)
+		}
+		c.Start()
+		logger.Infof("Added task with ID: %d", id)
+	}()
 
 	// start api server
 	cmd.StartAPIServer()

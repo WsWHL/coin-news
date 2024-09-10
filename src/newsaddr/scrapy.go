@@ -201,6 +201,11 @@ func (b *BrowserScrapy) Start() {
 		return
 	}
 
+	if resp.Status != http.StatusOK {
+		logger.Errorf("Request URL: %s, status_code: %d, status_text: %s\nbody: %s", b.url, resp.Status, resp.StatusText, html)
+		return
+	}
+
 	req := &colly.Request{}
 	req.URL, _ = url.Parse(b.url)
 	switch resp.MimeType {
@@ -233,10 +238,6 @@ func (b *BrowserScrapy) Start() {
 				Request:    req,
 			})
 		}
-	}
-
-	if resp.Status != http.StatusOK {
-		logger.Errorf("Request URL: %s, status_code: %d, status_text: %s\nbody: %s", b.url, resp.Status, resp.StatusText, html)
 	}
 }
 
