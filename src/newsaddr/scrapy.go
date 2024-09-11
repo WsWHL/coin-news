@@ -151,7 +151,8 @@ type htmlCallbackContainer struct {
 }
 
 func NewBrowserScrapy(url string) *BrowserScrapy {
-	ctx, cancel := utils.NewBrowserContext(context.Background())
+	ct, _ := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := utils.NewBrowserContext(ct)
 	return &BrowserScrapy{
 		url:           url,
 		ctx:           ctx,
@@ -162,7 +163,8 @@ func NewBrowserScrapy(url string) *BrowserScrapy {
 }
 
 func NewBrowserScrapyFromColly(c *Scrapy, url string) *BrowserScrapy {
-	ctx, cancel := utils.NewBrowserContext(context.Background())
+	ct, _ := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := utils.NewBrowserContext(ct)
 	return &BrowserScrapy{
 		url:           url,
 		ctx:           ctx,

@@ -19,8 +19,9 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		c.Start()
+
 		logger.Infof("Added task with ID: %d", id)
+		c.Run()
 	}()
 
 	// start api server

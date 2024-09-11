@@ -85,7 +85,7 @@ func removeDuplicates(threshold float64) pluginFunc {
 }
 
 // newQueueWrapper wraps a queue to send articles to it.
-func newQueueWrapper(q *queue.Queue, quit <-chan struct{}, cancel context.CancelFunc) newsaddr.QueueWrapper {
+func newQueueWrapper(q *queue.Queue, quit <-chan struct{}) newsaddr.QueueWrapper {
 	var (
 		mu     sync.Mutex
 		count  = 10
@@ -103,7 +103,6 @@ func newQueueWrapper(q *queue.Queue, quit <-chan struct{}, cancel context.Cancel
 	go func() {
 		defer func() {
 			q.Release() // Release the queue when it's done.
-			cancel()
 			logger.Infof("Finished sending articles to queue.")
 		}()
 
@@ -168,7 +167,25 @@ func newQueueWrapper(q *queue.Queue, quit <-chan struct{}, cancel context.Cancel
 		mu.Lock()
 		defer mu.Unlock()
 
-		list = append(list, articles...)
+		for i := range articles {
+			article := articles[i]
+			if article.Title == "" {
+				continue
+			}
+
+			if article.Image == "" {
+				logger.Infof("starting search for image %s", article.Title)
+
+				ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+				g := utils.NewGoogleSearch(ctx)
+				article.Image, _ = g.Search(article.Title)
+				g.Close()
+				cancel()
+
+				logger.Infof("search result: %s", article.Image)
+			}
+			list = append(list, article)
+		}
 	}
 }
 
@@ -209,16 +226,13 @@ func newQueue(plugins ...pluginFunc) *queue.Queue {
 }
 
 func getScrapers(quit <-chan struct{}) ([]newsaddr.Scraper, *queue.Queue) {
-	ctx, cancel := context.WithCancel(context.Background())
-
 	threshold := config.Cfg.Scrapy.Threshold
 	q := newQueue(
 		translateTitle(),
 		removeDuplicates(threshold),
-		searchImage(ctx),
 	)
 
-	qw := newQueueWrapper(q, quit, cancel)
+	qw := newQueueWrapper(q, quit)
 	scrapers := []newsaddr.Scraper{
 		newsaddr.NewJinSeScrapy(qw),
 		newsaddr.NewBeinCryptoScrapy(qw),
