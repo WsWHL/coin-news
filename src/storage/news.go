@@ -177,6 +177,7 @@ type articleInfo struct {
 	Author   string `json:"author"`
 	Image    string `json:"image"`
 	Token    string `json:"token"`
+	Abstract string `json:"abstract"`
 }
 
 func newArticleInfo(article *models.Article, lang string) articleInfo {
@@ -188,5 +189,6 @@ func newArticleInfo(article *models.Article, lang string) articleInfo {
 		Author:   article.Author,
 		Image:    article.Image,
 		Token:    article.Token,
+		Abstract: article.Abstract,
 	}
 }
