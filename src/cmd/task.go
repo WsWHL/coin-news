@@ -175,12 +175,24 @@ func newQueueWrapper(q *queue.Queue, quit <-chan struct{}) newsaddr.QueueWrapper
 
 			if article.Image == "" {
 				logger.Infof("starting search for image %s", article.Title)
+				try := 5
 
+			SEARCH:
 				ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 				g := utils.NewGoogleSearch(ctx)
 				article.Image, _ = g.Search(article.Title)
 				g.Close()
 				cancel()
+				if article.Image == "" {
+					if try <= 0 {
+						logger.Infof("Failed to find image for %s", article.Title)
+						continue
+					}
+					logger.Infof("Retrying search for image %s", article.Title)
+					time.Sleep(3 * time.Second)
+					try--
+					goto SEARCH
+				}
 
 				logger.Infof("search result: %s", article.Image)
 			}
