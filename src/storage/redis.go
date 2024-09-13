@@ -9,14 +9,16 @@ import (
 	"news/src/logger"
 	"news/src/models"
 	"strconv"
+	"strings"
 )
 
 const (
-	NewsCategoryZSetKey  = "news:category:%s"         // 所有文章类别集合
-	NewsOriginZSetKey    = "news:origin:%s"           // 指定网站文章集合
-	NewsTokenKey         = "news:tokens:%s"           // 文章内容信息
-	NewsOriginsSetKey    = "news:origins:category:%s" // 类别来源网址列表
-	NewsAllTokensZSetKey = "news:all:tokens"          // 所有文章 token 列表
+	NewsCategoryZSetKey   = "news:category:%s"         // 所有文章类别集合
+	NewsOriginZSetKey     = "news:origin:%s"           // 指定网站文章集合
+	NewsTokenKey          = "news:tokens:%s"           // 文章内容信息
+	NewsOriginsSetKey     = "news:origins:category:%s" // 类别来源网址列表
+	NewsAllTokensZSetKey  = "news:all:tokens"          // 所有文章 token 列表
+	TempNewsOriginZSetKey = "temp:news:origin:%s"      // 临时多网站合集
 
 	CoinSlugsListKey = "coin:slugs:%s"      // 指定币文章列表
 	CoinNewsTokenKey = "coin:news:token:%s" // 币种文章信息
@@ -184,9 +186,22 @@ func (s *RedisStorage) GetHomeList(category string, page, size int) ([]*models.A
 }
 
 func (s *RedisStorage) GetReadList(origins []string, category string) (map[string][]*models.Article, error) {
+	tempUnionKey := fmt.Sprintf(TempNewsOriginZSetKey, strings.Join(origins, "."))
 	keys := make([]string, 0, 10)
-	for _, origin := range origins {
-		keys = append(keys, s.sKey(NewsOriginZSetKey, origin))
+	if len(origins) == 1 {
+		keys = append(keys, s.sKey(NewsOriginZSetKey, origins[0]))
+	} else {
+		unionKeys := make([]string, 0, len(origins))
+		for _, origin := range origins {
+			unionKeys = append(unionKeys, s.sKey(NewsOriginZSetKey, origin))
+		}
+		err := s.client.ZUnionStore(context.Background(), tempUnionKey, &redis.ZStore{
+			Keys: unionKeys,
+		}).Err()
+		if err != nil {
+			return nil, err
+		}
+		keys = append(keys, tempUnionKey)
 	}
 	if category != "" {
 		keys = append(keys, s.sKey(NewsCategoryZSetKey, category))
@@ -207,6 +222,11 @@ func (s *RedisStorage) GetReadList(origins []string, category string) (map[strin
 		if article, err := s.Get(token); err == nil {
 			articles[article.From] = append(articles[article.From], article)
 		}
+	}
+
+	// delete temp union key
+	if len(origins) > 0 {
+		s.client.Del(context.Background(), tempUnionKey)
 	}
 
 	return articles, nil
