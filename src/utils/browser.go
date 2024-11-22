@@ -2,6 +2,7 @@ package utils
 
 import (
 	"context"
+	"fmt"
 	"github.com/chromedp/chromedp"
 	"news/src/config"
 	"news/src/logger"
@@ -66,15 +67,33 @@ func (g *GoogleSearch) Search(q string) (string, bool) {
 				err := chromedp.Evaluate("document.querySelectorAll('div[role=\"dialog\"] > div > div:nth-of-type(2) > c-wiz a > img[jsaction]').length", &count).Do(ctx)
 				if err == nil && count > 0 {
 					logger.Infof("Found image try %d times", i+1)
-					return chromedp.AttributeValue("//*[@role=\"dialog\"]/div/div[2]/c-wiz/div/div[3]/div[1]/a/img[@jsaction]", "src", &url, &ok).Do(ctx)
+					err = chromedp.AttributeValue("//*[@role=\"dialog\"]/div/div[2]/c-wiz/div/div[3]/div[1]/a/img[@jsaction]", "src", &url, &ok).Do(ctx)
+					if err != nil {
+						return err
+					}
+					break
 				}
 			}
 
-			return chromedp.AttributeValue("//*[@role=\"dialog\"]/div/div[2]/c-wiz/div/div[3]/div[1]/a/img[1]", "src", &url, &ok).Do(ctx)
+			if url == "" {
+				err := chromedp.AttributeValue("//*[@role=\"dialog\"]/div/div[2]/c-wiz/div/div[3]/div[1]/a/img[1]", "src", &url, &ok).Do(ctx)
+				if err != nil {
+					return err
+				}
+			}
+
+			for i := 2; len(url) > 512; i++ {
+				if err := chromedp.DoubleClick(fmt.Sprintf("//div[@id=\"search\"]/div/div/div/div/div[1]/div/div/div[%d]", i)).Do(ctx); err != nil {
+					return err
+				}
+				time.Sleep(time.Second)
+				_ = chromedp.AttributeValue("//*[@role=\"dialog\"]/div/div[2]/c-wiz/div/div[3]/div[1]/a/img[1]", "src", &url, &ok).Do(ctx)
+			}
+
+			return nil
 		}),
 	)
 	if err != nil {
-		logger.Errorf("Error searching Google images: %v", err)
 		return "", false
 	}
 

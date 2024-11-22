@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/gocolly/colly"
-	"news/src/logger"
 	"news/src/models"
 	"strings"
 	"time"
@@ -102,39 +101,30 @@ func (b *BeinCryptoScrapy) Run() error {
 	// featured
 	s := NewBrowserScrapy(b.domain)
 	s.OnCallback("main#bic-main-content section:nth-of-type(1) > div > div:nth-of-type(1)", func(e *colly.HTMLElement) {
-		title := e.ChildAttr("figure a", "title")
 		link := e.ChildAttr("figure a", "href")
 
 		if article, success := b.OnDetails(link); success {
 			article.Category = models.FeaturedCategory
 			b.send(article)
-		} else {
-			logger.Errorf("Failed to scrape article: title: %s, url: %s", title, link)
 		}
 	})
 
 	s.OnCallback("main#bic-main-content section:nth-of-type(1) > div > div:nth-of-type(2) ul li", func(e *colly.HTMLElement) {
-		title := e.ChildText("a")
 		link := e.ChildAttr("a", "href")
 
 		if article, success := b.OnDetails(link); success {
 			article.Category = models.FeaturedCategory
 			b.send(article)
-		} else {
-			logger.Errorf("Failed to scrape article: title: %s, url: %s", title, link)
 		}
 	})
 
 	// most reads
 	s.OnCallback("main#bic-main-content section:nth-of-type(1) > div > div:nth-of-type(3) ul li", func(e *colly.HTMLElement) {
-		title := e.ChildText("a")
 		link := e.ChildAttr("a", "href")
 
 		if article, success := b.OnDetails(link); success {
 			article.Category = models.MostReadsCategory
 			b.send(article)
-		} else {
-			logger.Errorf("Failed to scrape article: title: %s, url: %s", title, link)
 		}
 	})
 

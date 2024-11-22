@@ -17,6 +17,7 @@ type Article struct {
 	Title        string        `gorm:"column:title;size:256;index:idx_title;not null" json:"title"`
 	TitleCN      string        `gorm:"column:title_ch;size:256" json:"title_cn"`
 	Abstract     string        `gorm:"column:abstract;type:text" json:"abstract"`
+	AbstractCN   string        `gorm:"column:abstract_ch;type:text" json:"abstract_cn"`
 	Image        string        `gorm:"column:image;size:512" json:"image"`
 	Link         string        `gorm:"column:link;size:512" json:"link"`
 	PubDate      sql.NullTime  `gorm:"column:pub_date" json:"pub_date"`
@@ -62,11 +63,19 @@ func (a *Article) GenToken() string {
 }
 
 func (a *Article) GetTitleByLang(lang string) string {
-	if lang == "ch" {
+	if lang == "ch" && a.TitleCN != "" {
 		return a.TitleCN
 	}
 
 	return a.Title
+}
+
+func (a *Article) GetAbstractByLang(lang string) string {
+	if lang == "ch" && a.AbstractCN != "" {
+		return a.AbstractCN
+	}
+
+	return a.Abstract
 }
 
 func (a *Article) GetScore() float64 {

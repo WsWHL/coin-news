@@ -8,7 +8,10 @@ import (
 	"time"
 )
 
-var log = logrus.New()
+var (
+	log         = logrus.New()
+	lastLogDate time.Time
+)
 
 type Hook struct {
 	Writer    io.Writer
@@ -46,32 +49,35 @@ func newHook(writer io.Writer, formatter logrus.Formatter, level logrus.Level) *
 	}
 }
 
-func init() {
-	log.SetLevel(logrus.DebugLevel)
-	log.SetOutput(io.Discard)
+func getLogFile(name string) *os.File {
+	currentDate := time.Now().Format("20060102")
+	if lastLogDate.Format("20060102") != currentDate {
+		lastLogDate = time.Now()
+	}
+	fileName := fmt.Sprintf("./logs/%s_%s.log", name, currentDate)
 
-	fileName := fmt.Sprintf("./logs/news_%s.log", time.Now().Format("20060102"))
 	logFile, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		log.Printf("Failed to open log file: %s", fileName)
 		panic(err)
 	}
+	return logFile
+}
 
-	fileName = fmt.Sprintf("./logs/news-err_%s.log", time.Now().Format("20060102"))
-	errLogFile, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-	if err != nil {
-		log.Printf("Failed to open log file: %s", fileName)
-		panic(err)
-	}
+func init() {
+	lastLogDate = time.Now()
+
+	log.SetLevel(logrus.DebugLevel)
+	log.SetOutput(io.Discard)
 
 	log.AddHook(newHook(
-		logFile,
+		getLogFile("news"),
 		&logrus.JSONFormatter{},
 		logrus.DebugLevel,
 	))
 
 	log.AddHook(newHook(
-		errLogFile,
+		getLogFile("news-err"),
 		&logrus.JSONFormatter{},
 		logrus.ErrorLevel,
 	))

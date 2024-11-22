@@ -108,8 +108,17 @@ func (s *NewsService) NewsReadListHandler(c *utils.ApiContext) {
 		return
 	}
 
+	originMap := make(map[string]struct{})
+	for _, origin := range req.Origins {
+		originMap[origin] = struct{}{}
+	}
+
 	articles := make(map[string][]articleInfo)
 	for key, items := range list {
+		if _, ok := originMap[key]; !ok {
+			continue
+		}
+
 		articles[key] = make([]articleInfo, 0, len(items))
 		for _, article := range items {
 			articles[key] = append(articles[key], newArticleInfo(article, req.Lang))
@@ -189,6 +198,6 @@ func newArticleInfo(article *models.Article, lang string) articleInfo {
 		Author:   article.Author,
 		Image:    article.Image,
 		Token:    article.Token,
-		Abstract: article.Abstract,
+		Abstract: article.GetAbstractByLang(lang),
 	}
 }

@@ -108,8 +108,6 @@ func (s *Scrapy) Start() {
 	})
 
 	s.c.OnError(func(r *colly.Response, err error) {
-		logger.Errorf("Request URL: %s, status_code: %d, error: %s\nbody: %s", r.Request.URL, r.StatusCode, err, r.Body)
-
 		// If the request fails, using browser scraping retry the request
 		if r.StatusCode == http.StatusForbidden {
 			b := NewBrowserScrapyFromColly(s, r.Request.URL.String())
@@ -131,9 +129,7 @@ func (s *Scrapy) Start() {
 	seconds := rand.Intn(5)
 	time.Sleep(time.Duration(seconds) * time.Second)
 
-	if err := s.c.Visit(s.url); err != nil {
-		logger.Errorf("url: %s, error: %s", s.url, err)
-	}
+	_ = s.c.Visit(s.url)
 }
 
 type BrowserScrapy struct {
@@ -199,12 +195,10 @@ func (b *BrowserScrapy) Start() {
 		}),
 	)
 	if err != nil {
-		logger.Errorf("Failed to start browser: %s", err)
 		return
 	}
 
 	if resp.Status != http.StatusOK {
-		logger.Errorf("Request URL: %s, status_code: %d, status_text: %s\nbody: %s", b.url, resp.Status, resp.StatusText, html)
 		return
 	}
 
@@ -215,7 +209,6 @@ func (b *BrowserScrapy) Start() {
 		html = fmt.Sprintf("<!DOCTYPE html>\n%s", html)
 		doc, err := goquery.NewDocumentFromReader(bytes.NewBufferString(html))
 		if err != nil {
-			logger.Errorf("Failed to parse HTML: %s", err)
 			return
 		}
 
